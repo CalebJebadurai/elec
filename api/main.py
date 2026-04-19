@@ -26,6 +26,11 @@ _rate_store_max_keys = 10_000  # Evict oldest entries if exceeded
 # Paths exempt from rate limiting
 _RATE_EXEMPT = {"/health", "/docs", "/openapi.json", "/redoc"}
 
+# Stricter rate limits for auth endpoints (prevent brute force)
+_AUTH_RATE_LIMIT = 10  # max 10 auth requests per window
+_AUTH_PATHS = {"/auth/verify-otp", "/auth/google-link"}
+_auth_rate_store: dict[str, list[float]] = defaultdict(list)
+
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
@@ -33,9 +38,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if path in _RATE_EXEMPT:
             return await call_next(request)
 
-        client_ip = request.headers.get(
-            "X-Forwarded-For", request.client.host if request.client else "unknown"
-        ).split(",")[0].strip()
+        client_ip = request.client.host if request.client else "unknown"
 
         now = time.time()
         window_start = now - RATE_LIMIT_WINDOW
@@ -59,6 +62,18 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 headers={"Retry-After": str(RATE_LIMIT_WINDOW)},
             )
 
+        # Stricter limit for auth endpoints (brute-force protection)
+        if path in _AUTH_PATHS:
+            auth_hits = _auth_rate_store[client_ip]
+            _auth_rate_store[client_ip] = [t for t in auth_hits if t > window_start]
+            _auth_rate_store[client_ip].append(now)
+            if len(_auth_rate_store[client_ip]) > _AUTH_RATE_LIMIT:
+                return JSONResponse(
+                    status_code=429,
+                    content={"detail": "Too many authentication attempts. Please try later."},
+                    headers={"Retry-After": str(RATE_LIMIT_WINDOW * 5)},
+                )
+
         response = await call_next(request)
         response.headers["X-RateLimit-Limit"] = str(RATE_LIMIT_REQUESTS)
         response.headers["X-RateLimit-Remaining"] = str(
@@ -75,6 +90,17 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Permissions-Policy"] = "geolocation=(), camera=(), microphone=()"
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self' https://apis.google.com https://*.firebaseio.com https://*.gstatic.com; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data: https://*.googleusercontent.com; "
+            "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://identitytoolkit.googleapis.com; "
+            "frame-src https://accounts.google.com https://*.firebaseapp.com; "
+            "object-src 'none'; "
+            "base-uri 'self'"
+        )
         return response
 
 
@@ -242,7 +268,7 @@ async def seed_data(request: Request):
     seed_secret = os.environ.get("SEED_SECRET", "")
     auth_header = request.headers.get("Authorization", "")
     if not seed_secret or auth_header != f"Bearer {seed_secret}":
-        return JSONResponse(status_code=403, content={"detail": "Forbidden"})
+        raise HTTPException(status_code=404, detail="Not found")
 
     pool = await get_pool()
     count = await pool.fetchval("SELECT COUNT(*) FROM tcpd_ae")
@@ -295,8 +321,7 @@ async def seed_data(request: Request):
                 schema_name="public",
             )
     except Exception as e:
-        import traceback
-        return JSONResponse(status_code=500, content={"detail": f"{type(e).__name__}: {e}", "traceback": traceback.format_exc()})
+        return JSONResponse(status_code=500, content={"detail": "Seed failed. Check server logs."})
 
     # Deduplicate
     await pool.execute("""
@@ -322,7 +347,7 @@ async def dedup_data(request: Request):
     seed_secret = os.environ.get("SEED_SECRET", "")
     auth_header = request.headers.get("Authorization", "")
     if not seed_secret or auth_header != f"Bearer {seed_secret}":
-        return JSONResponse(status_code=403, content={"detail": "Forbidden"})
+        raise HTTPException(status_code=404, detail="Not found")
 
     pool = await get_pool()
     before = await pool.fetchval("SELECT COUNT(*) FROM tcpd_ae")
@@ -348,7 +373,7 @@ async def truncate_data(request: Request):
     seed_secret = os.environ.get("SEED_SECRET", "")
     auth_header = request.headers.get("Authorization", "")
     if not seed_secret or auth_header != f"Bearer {seed_secret}":
-        return JSONResponse(status_code=403, content={"detail": "Forbidden"})
+        raise HTTPException(status_code=404, detail="Not found")
 
     pool = await get_pool()
     before = await pool.fetchval("SELECT COUNT(*) FROM tcpd_ae")
