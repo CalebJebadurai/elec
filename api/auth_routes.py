@@ -2,6 +2,10 @@
 
 import os
 import re
+import time as _time
+
+import httpx
+import jwt as pyjwt
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, field_validator
@@ -12,6 +16,39 @@ from database import get_pool
 auth_router = APIRouter()
 
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
+
+# ── Firebase public key cache ─────────────────────────────
+_firebase_keys_cache: dict | None = None
+_firebase_keys_expiry: float = 0
+
+
+async def _get_firebase_public_keys() -> dict:
+    """Fetch and cache Google's Firebase public keys (TTL from Cache-Control)."""
+    global _firebase_keys_cache, _firebase_keys_expiry
+    if _firebase_keys_cache and _time.time() < _firebase_keys_expiry:
+        return _firebase_keys_cache
+
+    async with httpx.AsyncClient(timeout=10) as client:
+        resp = await client.get(
+            "https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com"
+        )
+    if resp.status_code != 200:
+        raise HTTPException(502, "Failed to fetch Firebase public keys")
+
+    # Parse max-age from Cache-Control header
+    cc = resp.headers.get("cache-control", "")
+    max_age = 3600  # default 1 hour
+    for part in cc.split(","):
+        part = part.strip()
+        if part.startswith("max-age="):
+            try:
+                max_age = int(part.split("=")[1])
+            except ValueError:
+                pass
+
+    _firebase_keys_cache = resp.json()
+    _firebase_keys_expiry = _time.time() + max_age
+    return _firebase_keys_cache
 
 # ── Request / Response Models ─────────────────────────────
 
@@ -167,7 +204,6 @@ async def update_me(body: UserProfile, user: dict = Depends(require_user)):
 
 async def _fetch_google_birthday(access_token: str):
     """Fetch the user's birthday from Google People API. Returns a date or None."""
-    import httpx
     from datetime import date
 
     try:
@@ -194,8 +230,6 @@ async def _verify_firebase_phone_token(id_token: str, expected_phone: str) -> st
     Verify a Firebase ID token and extract the phone number.
     Uses Google's secure token verification endpoint for Firebase tokens.
     """
-    import httpx
-
     # Firebase ID tokens must be verified via the securetoken endpoint
     FIREBASE_PROJECT_ID = os.environ.get("FIREBASE_PROJECT_ID", "elec-auth")
 
@@ -230,20 +264,9 @@ async def _verify_firebase_phone_token(id_token: str, expected_phone: str) -> st
 async def _verify_firebase_jwt(id_token: str, project_id: str) -> str:
     """
     Verify Firebase ID token by decoding the JWT and checking its claims.
-    Fetches Google's public keys to verify the signature.
+    Uses cached Google public keys to verify the signature.
     """
-    import httpx
-    import jwt as pyjwt
-
-    # Fetch Google's public keys for Firebase
-    async with httpx.AsyncClient(timeout=10) as client:
-        resp = await client.get(
-            "https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com"
-        )
-    if resp.status_code != 200:
-        raise HTTPException(502, "Failed to fetch Firebase public keys")
-
-    public_keys = resp.json()
+    public_keys = await _get_firebase_public_keys()
 
     # Decode header to find the key ID
     try:
@@ -289,8 +312,6 @@ async def _verify_google_from_firebase(id_token: str) -> dict:
     FIREBASE_PROJECT_ID = os.environ.get("FIREBASE_PROJECT_ID", "elec-auth")
 
     # First try the Identity Toolkit API
-    import httpx
-
     async with httpx.AsyncClient(timeout=10) as client:
         resp = await client.post(
             f"https://www.googleapis.com/identitytoolkit/v3/relyingparty/getAccountInfo"
@@ -321,11 +342,27 @@ async def _verify_google_from_firebase(id_token: str) -> dict:
 
         return {"google_id": google_id, "email": email, "picture": picture}
 
-    # Fallback: decode Firebase JWT directly
-    import jwt as pyjwt
-
+    # Fallback: verify Firebase JWT with signature check
     try:
-        payload = pyjwt.decode(id_token, options={"verify_signature": False})
+        public_keys = await _get_firebase_public_keys()
+        header = pyjwt.get_unverified_header(id_token)
+        kid = header.get("kid")
+        if kid not in public_keys:
+            raise HTTPException(401, "Firebase token key ID not found")
+
+        from cryptography.x509 import load_pem_x509_certificate
+        cert = load_pem_x509_certificate(public_keys[kid].encode())
+        public_key = cert.public_key()
+
+        payload = pyjwt.decode(
+            id_token,
+            public_key,
+            algorithms=["RS256"],
+            audience=FIREBASE_PROJECT_ID,
+            issuer=f"https://securetoken.google.com/{FIREBASE_PROJECT_ID}",
+        )
+    except HTTPException:
+        raise
     except Exception:
         raise HTTPException(401, "Invalid Firebase token")
 

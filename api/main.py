@@ -21,6 +21,7 @@ RATE_LIMIT_REQUESTS = int(os.environ.get("RATE_LIMIT_REQUESTS", "100"))
 RATE_LIMIT_WINDOW = int(os.environ.get("RATE_LIMIT_WINDOW", "60"))  # seconds
 
 _rate_store: dict[str, list[float]] = defaultdict(list)
+_rate_store_max_keys = 10_000  # Evict oldest entries if exceeded
 
 # Paths exempt from rate limiting
 _RATE_EXEMPT = {"/health", "/docs", "/openapi.json", "/redoc"}
@@ -43,6 +44,13 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         hits = _rate_store[client_ip]
         _rate_store[client_ip] = [t for t in hits if t > window_start]
         _rate_store[client_ip].append(now)
+
+        # Evict stale IPs to prevent memory leak
+        if len(_rate_store) > _rate_store_max_keys:
+            stale = [ip for ip, ts in _rate_store.items()
+                     if not ts or ts[-1] < window_start]
+            for ip in stale:
+                del _rate_store[ip]
 
         if len(_rate_store[client_ip]) > RATE_LIMIT_REQUESTS:
             return JSONResponse(

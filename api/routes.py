@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import JSONResponse
 
 from auth import require_user
 from database import get_pool
@@ -20,6 +21,22 @@ from models import (
 )
 
 router = APIRouter()
+
+# ── Server-side response cache for read-only endpoints ────
+import time as _time
+_response_cache: dict[str, tuple[float, any]] = {}
+_CACHE_TTL = 300  # 5 minutes
+
+
+def _get_cached(key: str):
+    entry = _response_cache.get(key)
+    if entry and _time.time() - entry[0] < _CACHE_TTL:
+        return entry[1]
+    return None
+
+
+def _set_cached(key: str, data):
+    _response_cache[key] = (_time.time(), data)
 
 
 def _row_to_election(row) -> Election:
@@ -216,22 +233,29 @@ async def search_candidates(
 # ---------------------------------------------------------------------------
 @router.get("/stats/summary", response_model=StatsSummary)
 async def stats_summary():
+    cached = _get_cached("stats_summary")
+    if cached:
+        return cached
+
     pool = await get_pool()
-    row = await pool.fetchrow(
-        "SELECT COUNT(*) AS total_records,"
-        " COUNT(DISTINCT year) AS total_years,"
-        " MIN(year) AS year_min,"
-        " MAX(year) AS year_max,"
-        " COUNT(DISTINCT party) AS total_parties,"
-        " COUNT(DISTINCT constituency_name) AS total_constituencies,"
-        " COUNT(DISTINCT district_name) AS total_districts"
-        " FROM tcpd_ae"
-    )
-    # Derive state/election type and general election years from the data
-    state_row = await pool.fetchrow(
-        "SELECT state_name, election_type FROM tcpd_ae"
-        " WHERE state_name IS NOT NULL LIMIT 1"
-    )
+    # Combined query: aggregate stats + state info in one round-trip
+    row = await pool.fetchrow("""
+        WITH agg AS (
+            SELECT COUNT(*) AS total_records,
+                COUNT(DISTINCT year) AS total_years,
+                MIN(year) AS year_min, MAX(year) AS year_max,
+                COUNT(DISTINCT party) AS total_parties,
+                COUNT(DISTINCT constituency_name) AS total_constituencies,
+                COUNT(DISTINCT district_name) AS total_districts
+            FROM tcpd_ae
+        ),
+        meta AS (
+            SELECT state_name, election_type FROM tcpd_ae
+            WHERE state_name IS NOT NULL LIMIT 1
+        )
+        SELECT agg.*, meta.state_name, meta.election_type
+        FROM agg, meta
+    """)
     year_rows = await pool.fetch(
         "SELECT year FROM ("
         "  SELECT year, COUNT(DISTINCT constituency_name) AS n"
@@ -241,11 +265,8 @@ async def stats_summary():
     )
     general_years = [r["year"] for r in year_rows]
     latest_year = general_years[-1] if general_years else dict(row).get("year_max")
-
-    # Estimate next election year (typically 5 years after the last)
     next_election_year = (latest_year + 5) if latest_year else None
 
-    # Get total electors from the latest election
     electors = None
     if latest_year is not None:
         electors = await pool.fetchval(
@@ -255,14 +276,22 @@ async def stats_summary():
             latest_year,
         )
 
-    return StatsSummary(
-        **dict(row),
-        state_name=state_row["state_name"].replace("_", " ") if state_row and state_row["state_name"] else None,
-        election_type=state_row["election_type"] if state_row else None,
+    result = StatsSummary(
+        total_records=row["total_records"],
+        total_years=row["total_years"],
+        year_min=row["year_min"],
+        year_max=row["year_max"],
+        total_parties=row["total_parties"],
+        total_constituencies=row["total_constituencies"],
+        total_districts=row["total_districts"],
+        state_name=row["state_name"].replace("_", " ") if row["state_name"] else None,
+        election_type=row["election_type"],
         general_years=general_years,
         next_election_year=next_election_year,
         total_electors_latest=electors,
     )
+    _set_cached("stats_summary", result)
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -356,6 +385,10 @@ async def constituency_swing(name: str, _user: dict = Depends(require_user)):
 # ---------------------------------------------------------------------------
 @router.get("/swings/state", response_model=list[StateSwingSummary])
 async def state_swing(_user: dict = Depends(require_user)):
+    cached = _get_cached("swings_state")
+    if cached:
+        return cached
+
     pool = await get_pool()
     general_years = await _get_general_years(pool)
     rows = await pool.fetch("""
@@ -379,7 +412,9 @@ async def state_swing(_user: dict = Depends(require_user)):
         )
         SELECT * FROM with_lag ORDER BY year, seats_won DESC
     """, general_years)
-    return [StateSwingSummary(**dict(r)) for r in rows]
+    result = [StateSwingSummary(**dict(r)) for r in rows]
+    _set_cached("swings_state", result)
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -387,6 +422,10 @@ async def state_swing(_user: dict = Depends(require_user)):
 # ---------------------------------------------------------------------------
 @router.get("/swings/constituencies", response_model=list[ConstituencySwingRow])
 async def all_constituency_swings(_user: dict = Depends(require_user)):
+    cached = _get_cached("swings_constituencies")
+    if cached:
+        return cached
+
     pool = await get_pool()
     general_years = await _get_general_years(pool)
     rows = await pool.fetch("""
@@ -405,7 +444,9 @@ async def all_constituency_swings(_user: dict = Depends(require_user)):
             sub_region, constituency_type, year
         ORDER BY constituency_name, year
     """, general_years)
-    return [dict(r) for r in rows]
+    result = [dict(r) for r in rows]
+    _set_cached("swings_constituencies", result)
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -415,6 +456,10 @@ async def all_constituency_swings(_user: dict = Depends(require_user)):
 
 @router.get("/predict/data", response_model=PredictionDataResponse)
 async def prediction_data(_user: dict = Depends(require_user)):
+    cached = _get_cached("predict_data")
+    if cached:
+        return cached
+
     pool = await get_pool()
     general_years = await _get_general_years(pool)
 
@@ -497,7 +542,7 @@ async def prediction_data(_user: dict = Depends(require_user)):
         c.electors_latest for c in constituencies if c.electors_latest
     )
 
-    return PredictionDataResponse(
+    result = PredictionDataResponse(
         total_electors_next=total_electors_latest,  # estimate, same as latest
         total_electors_latest=total_electors_latest,
         latest_year=latest_year,
@@ -505,3 +550,5 @@ async def prediction_data(_user: dict = Depends(require_user)):
         constituency_count=len(constituencies),
         constituencies=constituencies,
     )
+    _set_cached("predict_data", result)
+    return result

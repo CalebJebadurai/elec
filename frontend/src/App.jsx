@@ -1,16 +1,16 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import { Routes, Route, useNavigate, useLocation, useParams, Navigate } from 'react-router-dom';
-import StateOverview from './components/StateOverview';
-import ConstituencyList from './components/ConstituencyList';
-import ConstituencyDetail from './components/ConstituencyDetail';
-import PredictionPanel from './components/PredictionPanel';
-import PredictionResults from './components/PredictionResults';
-import PredictionConstituencyTable from './components/PredictionConstituencyTable';
+const StateOverview = lazy(() => import('./components/StateOverview'));
+const ConstituencyList = lazy(() => import('./components/ConstituencyList'));
+const ConstituencyDetail = lazy(() => import('./components/ConstituencyDetail'));
+const PredictionPanel = lazy(() => import('./components/PredictionPanel'));
+const PredictionResults = lazy(() => import('./components/PredictionResults'));
+const PredictionConstituencyTable = lazy(() => import('./components/PredictionConstituencyTable'));
+const CommunityFeed = lazy(() => import('./components/CommunityFeed'));
+const MyBookmarks = lazy(() => import('./components/MyBookmarks'));
 import LoginModal from './components/LoginModal';
 import UserMenu from './components/UserMenu';
 import SaveBookmarkModal from './components/SaveBookmarkModal';
-import MyBookmarks from './components/MyBookmarks';
-import CommunityFeed from './components/CommunityFeed';
 import Disclaimer from './components/Disclaimer';
 import ErrorBoundary from './components/ErrorBoundary';
 import { useAuth } from './contexts/AuthContext';
@@ -18,6 +18,8 @@ import { api } from './api';
 import { DEFAULT_PREDICTION_PARAMS, normalizeParty, buildAffinityPresets } from './constants';
 import { generateBaseline, applyNewParty, aggregateResults } from './engine/predictionEngine';
 import './index.css';
+
+const Loading = () => <div className="loading">Loading…</div>;
 
 // Wrapper for constituency detail to extract route param
 function ConstituencyDetailRoute({ onBack }) {
@@ -105,14 +107,19 @@ export default function App() {
     return predData.total_electors_next / predData.total_electors_latest;
   }, [predData]);
 
-  // Compute predictions reactively from params
-  const predictions = useMemo(() => {
+  // Compute baseline predictions (only re-runs when core params change)
+  const baseline = useMemo(() => {
     if (!predData) return [];
-    const baseline = generateBaseline(predData.constituencies, {
+    return generateBaseline(predData.constituencies, {
       antiIncumbencyPct: predParams.antiIncumbencyPct,
       turnoutPct: predParams.turnoutPct,
       growthFactor,
     });
+  }, [predData, predParams.antiIncumbencyPct, predParams.turnoutPct, growthFactor]);
+
+  // Apply new party on top of baseline (only re-runs when party params change)
+  const predictions = useMemo(() => {
+    if (!baseline.length) return baseline;
     if (predParams.newPartyName && predParams.newPartyStatewideVoteShare > 0) {
       return applyNewParty(baseline, {
         name: predParams.newPartyName,
@@ -123,7 +130,9 @@ export default function App() {
       });
     }
     return baseline;
-  }, [predData, predParams, growthFactor]);
+  }, [baseline, predParams.newPartyName, predParams.newPartyColor,
+      predParams.newPartyStatewideVoteShare, predParams.affinityWeights,
+      predParams.constituencyOverrides]);
 
   const summary = useMemo(() => aggregateResults(predictions), [predictions]);
 
@@ -219,6 +228,7 @@ export default function App() {
           </nav>
         </header>
         <main>
+          <Suspense fallback={<Loading />}>
           <Routes>
             <Route path="/" element={
               user ? <Navigate to="/overview" replace /> : (
@@ -338,6 +348,7 @@ export default function App() {
             {/* Catch-all: redirect to home */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          </Suspense>
         </main>
         <footer className="app-footer">
           <div className="footer-content">

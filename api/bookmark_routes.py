@@ -86,23 +86,31 @@ async def list_public_bookmarks(
     order = "b.created_at DESC" if sort == "recent" else "b.like_count DESC"
     user_id = int(user["sub"]) if user else None
 
-    rows = await pool.fetch(
-        f"SELECT b.*, u.display_name AS author_name, u.avatar_url AS author_avatar "
-        f"FROM bookmarks b JOIN users u ON b.user_id = u.id "
-        f"WHERE b.is_public = true ORDER BY {order} "
-        f"LIMIT $1 OFFSET $2",
-        limit, offset,
-    )
+    if user_id:
+        # Single query with LEFT JOIN to get user's vote — no N+1
+        rows = await pool.fetch(
+            f"SELECT b.*, u.display_name AS author_name, u.avatar_url AS author_avatar, "
+            f"v.vote_type AS my_vote "
+            f"FROM bookmarks b JOIN users u ON b.user_id = u.id "
+            f"LEFT JOIN votes v ON v.bookmark_id = b.id AND v.user_id = $3 "
+            f"WHERE b.is_public = true ORDER BY {order} "
+            f"LIMIT $1 OFFSET $2",
+            limit, offset, user_id,
+        )
+    else:
+        rows = await pool.fetch(
+            f"SELECT b.*, u.display_name AS author_name, u.avatar_url AS author_avatar "
+            f"FROM bookmarks b JOIN users u ON b.user_id = u.id "
+            f"WHERE b.is_public = true ORDER BY {order} "
+            f"LIMIT $1 OFFSET $2",
+            limit, offset,
+        )
 
     results = []
     for r in rows:
         item = _bookmark_row(r)
         if user_id:
-            vote = await pool.fetchval(
-                "SELECT vote_type FROM votes WHERE user_id = $1 AND bookmark_id = $2",
-                user_id, r["id"],
-            )
-            item["my_vote"] = vote
+            item["my_vote"] = r.get("my_vote")
         results.append(item)
 
     return results
@@ -274,18 +282,22 @@ async def vote_bookmark(
                     user_id, bookmark_id, body.vote_type,
                 )
                 col = "like_count" if body.vote_type == "like" else "dislike_count"
-                await conn.execute(
-                    f"UPDATE bookmarks SET {col} = {col} + 1 WHERE id = $1",
+                updated = await conn.fetchrow(
+                    f"UPDATE bookmarks SET {col} = {col} + 1 WHERE id = $1 "
+                    f"RETURNING like_count, dislike_count",
                     bookmark_id,
                 )
+                current_vote = body.vote_type
             elif existing["vote_type"] == body.vote_type:
                 # Same vote type → remove (toggle off)
                 await conn.execute("DELETE FROM votes WHERE id = $1", existing["id"])
                 col = "like_count" if body.vote_type == "like" else "dislike_count"
-                await conn.execute(
-                    f"UPDATE bookmarks SET {col} = GREATEST({col} - 1, 0) WHERE id = $1",
+                updated = await conn.fetchrow(
+                    f"UPDATE bookmarks SET {col} = GREATEST({col} - 1, 0) WHERE id = $1 "
+                    f"RETURNING like_count, dislike_count",
                     bookmark_id,
                 )
+                current_vote = None
             else:
                 # Switch vote
                 old_col = "like_count" if existing["vote_type"] == "like" else "dislike_count"
@@ -294,21 +306,14 @@ async def vote_bookmark(
                     "UPDATE votes SET vote_type = $1 WHERE id = $2",
                     body.vote_type, existing["id"],
                 )
-                await conn.execute(
+                updated = await conn.fetchrow(
                     f"UPDATE bookmarks SET {old_col} = GREATEST({old_col} - 1, 0), "
-                    f"{new_col} = {new_col} + 1 WHERE id = $1",
+                    f"{new_col} = {new_col} + 1 WHERE id = $1 "
+                    f"RETURNING like_count, dislike_count",
                     bookmark_id,
                 )
+                current_vote = body.vote_type
 
-    # Return updated counts
-    updated = await pool.fetchrow(
-        "SELECT like_count, dislike_count FROM bookmarks WHERE id = $1",
-        bookmark_id,
-    )
-    current_vote = await pool.fetchval(
-        "SELECT vote_type FROM votes WHERE user_id = $1 AND bookmark_id = $2",
-        user_id, bookmark_id,
-    )
     return {
         "like_count": updated["like_count"],
         "dislike_count": updated["dislike_count"],
