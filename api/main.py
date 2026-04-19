@@ -1,5 +1,6 @@
 import os
 import time
+import logging
 from collections import defaultdict
 from contextlib import asynccontextmanager
 
@@ -12,6 +13,19 @@ from database import close_pool, get_pool
 from routes import router
 from auth_routes import auth_router
 from bookmark_routes import bookmark_router
+
+# ---------------------------------------------------------------------------
+# Security logging
+# ---------------------------------------------------------------------------
+logger = logging.getLogger("security")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+)
+
+# Max request body size (10 MB default, 50 MB for admin seed)
+MAX_BODY_SIZE = int(os.environ.get("MAX_BODY_SIZE", str(10 * 1024 * 1024)))
+MAX_ADMIN_BODY_SIZE = int(os.environ.get("MAX_ADMIN_BODY_SIZE", str(50 * 1024 * 1024)))
 
 
 # ---------------------------------------------------------------------------
@@ -38,6 +52,17 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if path in _RATE_EXEMPT:
             return await call_next(request)
 
+        # Enforce request body size limits
+        content_length = request.headers.get("content-length")
+        if content_length:
+            size = int(content_length)
+            limit = MAX_ADMIN_BODY_SIZE if path.startswith("/admin/") else MAX_BODY_SIZE
+            if size > limit:
+                return JSONResponse(
+                    status_code=413,
+                    content={"detail": "Request body too large"},
+                )
+
         client_ip = request.client.host if request.client else "unknown"
 
         now = time.time()
@@ -56,6 +81,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 del _rate_store[ip]
 
         if len(_rate_store[client_ip]) > RATE_LIMIT_REQUESTS:
+            logger.warning("Rate limit exceeded: ip=%s path=%s", client_ip, path)
             return JSONResponse(
                 status_code=429,
                 content={"detail": "Too many requests. Please slow down."},
@@ -68,6 +94,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             _auth_rate_store[client_ip] = [t for t in auth_hits if t > window_start]
             _auth_rate_store[client_ip].append(now)
             if len(_auth_rate_store[client_ip]) > _AUTH_RATE_LIMIT:
+                logger.warning("Auth rate limit exceeded: ip=%s path=%s", client_ip, path)
                 return JSONResponse(
                     status_code=429,
                     content={"detail": "Too many authentication attempts. Please try later."},
@@ -256,6 +283,17 @@ async def health():
     return {"status": "ok"}
 
 
+def _verify_admin(request: Request):
+    """Verify admin secret and log the attempt. Raises 404 if unauthorized."""
+    seed_secret = os.environ.get("SEED_SECRET", "")
+    auth_header = request.headers.get("Authorization", "")
+    client_ip = request.client.host if request.client else "unknown"
+    if not seed_secret or auth_header != f"Bearer {seed_secret}":
+        logger.warning("Unauthorized admin attempt: ip=%s path=%s", client_ip, request.url.path)
+        raise HTTPException(status_code=404, detail="Not found")
+    logger.info("Admin action: ip=%s path=%s", client_ip, request.url.path)
+
+
 @app.post("/admin/seed", tags=["infra"])
 async def seed_data(request: Request):
     """Seed the database with CSV data sent via POST body.
@@ -265,10 +303,7 @@ async def seed_data(request: Request):
     import csv
     import io
 
-    seed_secret = os.environ.get("SEED_SECRET", "")
-    auth_header = request.headers.get("Authorization", "")
-    if not seed_secret or auth_header != f"Bearer {seed_secret}":
-        raise HTTPException(status_code=404, detail="Not found")
+    _verify_admin(request)
 
     pool = await get_pool()
     count = await pool.fetchval("SELECT COUNT(*) FROM tcpd_ae")
@@ -344,10 +379,7 @@ async def seed_data(request: Request):
 @app.post("/admin/dedup", tags=["infra"])
 async def dedup_data(request: Request):
     """Deduplicate tcpd_ae table and create unique index."""
-    seed_secret = os.environ.get("SEED_SECRET", "")
-    auth_header = request.headers.get("Authorization", "")
-    if not seed_secret or auth_header != f"Bearer {seed_secret}":
-        raise HTTPException(status_code=404, detail="Not found")
+    _verify_admin(request)
 
     pool = await get_pool()
     before = await pool.fetchval("SELECT COUNT(*) FROM tcpd_ae")
@@ -370,10 +402,7 @@ async def dedup_data(request: Request):
 @app.post("/admin/truncate", tags=["infra"])
 async def truncate_data(request: Request):
     """Truncate tcpd_ae table."""
-    seed_secret = os.environ.get("SEED_SECRET", "")
-    auth_header = request.headers.get("Authorization", "")
-    if not seed_secret or auth_header != f"Bearer {seed_secret}":
-        raise HTTPException(status_code=404, detail="Not found")
+    _verify_admin(request)
 
     pool = await get_pool()
     before = await pool.fetchval("SELECT COUNT(*) FROM tcpd_ae")
