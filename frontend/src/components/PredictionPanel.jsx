@@ -146,14 +146,14 @@ export default function PredictionPanel({ params, onChange, presets, topParties 
         <input
           type="range"
           min="0"
-          max="40"
+          max="100"
           step="0.5"
           value={params.newPartyStatewideVoteShare}
           onChange={(e) => update('newPartyStatewideVoteShare', +e.target.value)}
           className="pred-slider"
         />
         <div className="pred-range-labels">
-          <span>0%</span><span>40%</span>
+          <span>0%</span><span>100%</span>
         </div>
       </div>
 
