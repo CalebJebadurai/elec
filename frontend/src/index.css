@@ -173,12 +173,98 @@ th.sticky-col { z-index: 3; background: var(--bg2); }
 .recharts-text { fill: var(--text-muted) !important; font-size: 12px; }
 .recharts-tooltip-cursor { fill: rgba(255,255,255,0.05); }
 
-@media (max-width: 768px) {
-  header h1 { font-size: 20px; }
-  .timeline-item { grid-template-columns: 40px 1fr 120px 50px; }
-  .filters { flex-direction: column; }
+/* ══════════════════════════════════════════════════════════
+   Responsive: Tablet (≤ 900px)
+   ══════════════════════════════════════════════════════════ */
+@media (max-width: 900px) {
   .pred-layout { flex-direction: column; }
-  .pred-panel { width: 100%; max-width: none; }
+  .pred-panel { width: 100%; min-width: 0; max-width: none; position: static; max-height: none; }
+  .bookmarks-list { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+}
+
+/* ══════════════════════════════════════════════════════════
+   Responsive: Mobile (≤ 600px)
+   ══════════════════════════════════════════════════════════ */
+@media (max-width: 600px) {
+  .app { padding: 0 10px; }
+
+  /* Header */
+  header { padding: 16px 0 10px; margin-bottom: 12px; }
+  header h1 { font-size: 18px; }
+  .subtitle { font-size: 11px; margin-bottom: 10px; }
+  .header-top { flex-wrap: wrap; gap: 8px; }
+  .header-actions { padding-top: 0; }
+
+  /* Nav: horizontal scroll instead of overflow */
+  nav { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; gap: 6px;
+    -webkit-overflow-scrolling: touch; scrollbar-width: none; padding-bottom: 4px; }
+  nav::-webkit-scrollbar { display: none; }
+  nav button { flex-shrink: 0; padding: 7px 14px; font-size: 13px; white-space: nowrap; }
+
+  /* Filters */
+  .filters { flex-direction: column; gap: 6px; }
+  .search-input { min-width: 0; width: 100%; }
+  .filters select { min-width: 0; width: 100%; }
+
+  /* Timeline */
+  .timeline-item { grid-template-columns: 36px 1fr 90px 44px; gap: 4px; }
+  .tl-bar { padding: 4px 8px; font-size: 12px; }
+  .tl-name { font-size: 11px; }
+
+  /* Tables */
+  .const-grid { font-size: 12px; }
+  .const-grid th, .const-grid td { padding: 5px 6px; }
+  .results-table { font-size: 12px; }
+  .results-table th, .results-table td { padding: 6px 8px; }
+
+  /* Meta info */
+  .meta { flex-wrap: wrap; gap: 6px; font-size: 12px; }
+
+  /* Prediction cards */
+  .pred-cards { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
+  .pred-card { padding: 12px; }
+  .card-value { font-size: 22px; }
+
+  /* Prediction toolbar */
+  .pred-toolbar { flex-wrap: wrap; gap: 6px; }
+
+  /* Bookmarks */
+  .bookmarks-list { grid-template-columns: 1fr; }
+
+  /* Community */
+  .community-feed { max-width: 100%; }
+  .feed-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .feed-card { padding: 12px; }
+
+  /* OTP boxes */
+  .otp-boxes { gap: 6px; }
+  .otp-box { width: 40px; height: 48px; font-size: 20px; border-radius: 8px; }
+
+  /* Phone input */
+  .country-select { width: 100px; font-size: 13px; padding: 8px 6px; }
+
+  /* Modal */
+  .modal-content { padding: 20px 16px; }
+
+  /* Disclaimer */
+  .disclaimer-banner { flex-direction: column; gap: 8px; padding: 10px 12px; font-size: 12px; }
+
+  /* Footer */
+  .app-footer { font-size: 12px; }
+  .footer-legal { font-size: 11px; }
+}
+
+/* ══════════════════════════════════════════════════════════
+   Responsive: Very small phones (≤ 380px)
+   ══════════════════════════════════════════════════════════ */
+@media (max-width: 380px) {
+  header h1 { font-size: 16px; }
+  nav button { padding: 6px 10px; font-size: 12px; }
+  .otp-boxes { gap: 4px; }
+  .otp-box { width: 36px; height: 44px; font-size: 18px; }
+  .timeline-item { grid-template-columns: 30px 1fr 70px 40px; }
+  .pred-cards { grid-template-columns: 1fr 1fr; }
+  .card-value { font-size: 20px; }
 }
 
 /* ============================
