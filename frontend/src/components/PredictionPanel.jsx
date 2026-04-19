@@ -59,15 +59,27 @@ export default function PredictionPanel({ params, onChange, presets, topParties 
         <input
           type="range"
           min="0"
-          max="50"
+          max="100"
           step="1"
           value={params.antiIncumbencyPct}
           onChange={(e) => update('antiIncumbencyPct', +e.target.value)}
           className="pred-slider"
         />
         <div className="pred-range-labels">
-          <span>0%</span><span>50%</span>
+          <span>0%</span><span>100%</span>
         </div>
+
+        <label className="pred-label">
+          Total Voters (Electors)
+        </label>
+        <input
+          type="number"
+          placeholder="Leave blank for default"
+          value={params.totalElectors || ''}
+          onChange={(e) => update('totalElectors', e.target.value ? +e.target.value : null)}
+          className="pred-input"
+          min="0"
+        />
 
         <label className="pred-label">
           Expected Turnout
@@ -75,15 +87,15 @@ export default function PredictionPanel({ params, onChange, presets, topParties 
         </label>
         <input
           type="range"
-          min="55"
-          max="90"
+          min="0"
+          max="100"
           step="0.5"
           value={params.turnoutPct}
           onChange={(e) => update('turnoutPct', +e.target.value)}
           className="pred-slider"
         />
         <div className="pred-range-labels">
-          <span>55%</span><span>90%</span>
+          <span>0%</span><span>100%</span>
         </div>
       </div>
 

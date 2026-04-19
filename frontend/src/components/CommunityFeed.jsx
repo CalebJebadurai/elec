@@ -38,6 +38,7 @@ export default function CommunityFeed({ onLoad }) {
     if (!params) return '';
     const parts = [];
     if (params.antiIncumbencyPct != null) parts.push(`Anti-Inc: ${params.antiIncumbencyPct}%`);
+    if (params.totalElectors) parts.push(`Voters: ${(params.totalElectors / 1e6).toFixed(1)}M`);
     if (params.turnoutPct != null) parts.push(`Turnout: ${params.turnoutPct}%`);
     if (params.newPartyName) parts.push(`New: ${params.newPartyName} @ ${params.newPartyStatewideVoteShare}%`);
     return parts.join(' · ');

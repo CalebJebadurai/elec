@@ -60,6 +60,7 @@ export const AFFINITY_PRESETS = {
 
 export const DEFAULT_PREDICTION_PARAMS = {
   antiIncumbencyPct: 10,
+  totalElectors: null,
   turnoutPct: 75,
   newPartyName: '',
   newPartyColor: '#9b59b6',
