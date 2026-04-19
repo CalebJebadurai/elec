@@ -930,9 +930,12 @@ th.sticky-col { z-index: 3; background: var(--bg2); }
 
   /* Nav: horizontal scroll instead of overflow */
   nav { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; gap: 6px;
-    -webkit-overflow-scrolling: touch; scrollbar-width: none; padding-bottom: 4px; }
+    -webkit-overflow-scrolling: touch; scrollbar-width: none; padding: 0 4px 4px; }
   nav::-webkit-scrollbar { display: none; }
   nav button { flex-shrink: 0; padding: 7px 14px; font-size: 13px; white-space: nowrap; }
+
+  /* Prediction constituency table */
+  .const-grid-wrap { max-height: 400px !important; }
 
   /* Filters */
   .filters { flex-direction: column; gap: 6px; }
