@@ -285,6 +285,9 @@ async def health():
 
 def _verify_admin(request: Request):
     """Verify admin secret and log the attempt. Raises 404 if unauthorized."""
+    # Admin endpoints can be completely disabled via env var
+    if os.environ.get("DISABLE_ADMIN", "").lower() in ("1", "true", "yes"):
+        raise HTTPException(status_code=404, detail="Not found")
     seed_secret = os.environ.get("SEED_SECRET", "")
     auth_header = request.headers.get("Authorization", "")
     client_ip = request.client.host if request.client else "unknown"
