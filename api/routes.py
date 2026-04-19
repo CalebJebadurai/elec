@@ -241,18 +241,20 @@ async def stats_summary():
             ") sub ORDER BY year"
         )
         general_years = [r["year"] for r in year_rows]
-        latest_year = general_years[-1] if general_years else dict(row)["year_max"]
+        latest_year = general_years[-1] if general_years else dict(row).get("year_max")
 
         # Estimate next election year (typically 5 years after the last)
-        next_election_year = latest_year + 5
+        next_election_year = (latest_year + 5) if latest_year else None
 
         # Get total electors from the latest election
-        electors = await pool.fetchval(
-            "SELECT SUM(DISTINCT e.electors) FROM "
-            "(SELECT constituency_no, MAX(electors) AS electors FROM tcpd_ae"
-            " WHERE year = $1 GROUP BY constituency_no) e",
-            latest_year,
-        )
+        electors = None
+        if latest_year is not None:
+            electors = await pool.fetchval(
+                "SELECT SUM(DISTINCT e.electors) FROM "
+                "(SELECT constituency_no, MAX(electors) AS electors FROM tcpd_ae"
+                " WHERE year = $1 GROUP BY constituency_no) e",
+                latest_year,
+            )
 
         return StatsSummary(
             **dict(row),
