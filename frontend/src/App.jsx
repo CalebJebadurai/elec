@@ -194,14 +194,65 @@ export default function App() {
         </header>
         <main>
           {!user && tab === 'overview' && (
-            <div className="panel" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
-              <h2>Welcome to Election Analysis</h2>
-              <p className="subtitle" style={{ marginBottom: '1.5rem' }}>
-                Sign in to explore constituency data, swing history, predictions, and community scenarios.
-              </p>
-              <button className="btn-login" onClick={() => setShowLogin(true)}>
-                Sign In to Get Started
-              </button>
+            <div className="hero">
+              <div className="hero-glow" />
+              <div className="hero-content">
+                <span className="hero-badge">Free &amp; Open Source</span>
+                <h2 className="hero-title">
+                  Explore {stats?.total_years || ''} Years of<br />
+                  <span className="hero-accent">Election Data</span>
+                </h2>
+                <p className="hero-desc">
+                  Dive into {stats?.total_constituencies || '—'} constituencies, track party swings, 
+                  run what-if predictions, and share scenarios with the community.
+                </p>
+                <button className="hero-cta" onClick={() => setShowLogin(true)}>
+                  Get Started
+                  <span className="hero-cta-arrow">→</span>
+                </button>
+              </div>
+              <div className="hero-features">
+                <div className="hero-feature">
+                  <div className="hero-feature-icon">📊</div>
+                  <h3>State Overview</h3>
+                  <p>Vote share trends, party dominance, and turnout patterns across decades.</p>
+                </div>
+                <div className="hero-feature">
+                  <div className="hero-feature-icon">🗺️</div>
+                  <h3>Constituency Deep Dive</h3>
+                  <p>Swing history, winning margins, and candidate performance for every seat.</p>
+                </div>
+                <div className="hero-feature">
+                  <div className="hero-feature-icon">🔮</div>
+                  <h3>{stats?.next_election_year || 'Next'} Predictions</h3>
+                  <p>Model scenarios with anti-incumbency, turnout, and hypothetical new parties.</p>
+                </div>
+                <div className="hero-feature">
+                  <div className="hero-feature-icon">👥</div>
+                  <h3>Community</h3>
+                  <p>Share your prediction scenarios and vote on others' analyses.</p>
+                </div>
+              </div>
+              {stats && (
+                <div className="hero-stats">
+                  <div className="hero-stat">
+                    <span className="hero-stat-value">{stats.general_years.length}</span>
+                    <span className="hero-stat-label">Elections</span>
+                  </div>
+                  <div className="hero-stat">
+                    <span className="hero-stat-value">{stats.total_constituencies}</span>
+                    <span className="hero-stat-label">Constituencies</span>
+                  </div>
+                  <div className="hero-stat">
+                    <span className="hero-stat-value">{stats.total_parties}</span>
+                    <span className="hero-stat-label">Parties</span>
+                  </div>
+                  <div className="hero-stat">
+                    <span className="hero-stat-value">{(stats.total_electors_latest / 1e6).toFixed(0)}M</span>
+                    <span className="hero-stat-label">Electors</span>
+                  </div>
+                </div>
+              )}
             </div>
           )}
           {user && tab === 'overview' && <StateOverview />}
