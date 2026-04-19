@@ -218,50 +218,50 @@ async def search_candidates(
 async def stats_summary():
     try:
         pool = await get_pool()
-    row = await pool.fetchrow(
-        "SELECT COUNT(*) AS total_records,"
-        " COUNT(DISTINCT year) AS total_years,"
-        " MIN(year) AS year_min,"
-        " MAX(year) AS year_max,"
-        " COUNT(DISTINCT party) AS total_parties,"
-        " COUNT(DISTINCT constituency_name) AS total_constituencies,"
-        " COUNT(DISTINCT district_name) AS total_districts"
-        " FROM tcpd_ae"
-    )
-    # Derive state/election type and general election years from the data
-    state_row = await pool.fetchrow(
-        "SELECT state_name, election_type FROM tcpd_ae"
-        " WHERE state_name IS NOT NULL LIMIT 1"
-    )
-    year_rows = await pool.fetch(
-        "SELECT year FROM ("
-        "  SELECT year, COUNT(DISTINCT constituency_name) AS n"
-        "  FROM tcpd_ae GROUP BY year"
-        "  HAVING COUNT(DISTINCT constituency_name) > 50"
-        ") sub ORDER BY year"
-    )
-    general_years = [r["year"] for r in year_rows]
-    latest_year = general_years[-1] if general_years else dict(row)["year_max"]
+        row = await pool.fetchrow(
+            "SELECT COUNT(*) AS total_records,"
+            " COUNT(DISTINCT year) AS total_years,"
+            " MIN(year) AS year_min,"
+            " MAX(year) AS year_max,"
+            " COUNT(DISTINCT party) AS total_parties,"
+            " COUNT(DISTINCT constituency_name) AS total_constituencies,"
+            " COUNT(DISTINCT district_name) AS total_districts"
+            " FROM tcpd_ae"
+        )
+        # Derive state/election type and general election years from the data
+        state_row = await pool.fetchrow(
+            "SELECT state_name, election_type FROM tcpd_ae"
+            " WHERE state_name IS NOT NULL LIMIT 1"
+        )
+        year_rows = await pool.fetch(
+            "SELECT year FROM ("
+            "  SELECT year, COUNT(DISTINCT constituency_name) AS n"
+            "  FROM tcpd_ae GROUP BY year"
+            "  HAVING COUNT(DISTINCT constituency_name) > 50"
+            ") sub ORDER BY year"
+        )
+        general_years = [r["year"] for r in year_rows]
+        latest_year = general_years[-1] if general_years else dict(row)["year_max"]
 
-    # Estimate next election year (typically 5 years after the last)
-    next_election_year = latest_year + 5
+        # Estimate next election year (typically 5 years after the last)
+        next_election_year = latest_year + 5
 
-    # Get total electors from the latest election
-    electors = await pool.fetchval(
-        "SELECT SUM(DISTINCT e.electors) FROM "
-        "(SELECT constituency_no, MAX(electors) AS electors FROM tcpd_ae"
-        " WHERE year = $1 GROUP BY constituency_no) e",
-        latest_year,
-    )
+        # Get total electors from the latest election
+        electors = await pool.fetchval(
+            "SELECT SUM(DISTINCT e.electors) FROM "
+            "(SELECT constituency_no, MAX(electors) AS electors FROM tcpd_ae"
+            " WHERE year = $1 GROUP BY constituency_no) e",
+            latest_year,
+        )
 
-    return StatsSummary(
-        **dict(row),
-        state_name=state_row["state_name"].replace("_", " ") if state_row and state_row["state_name"] else None,
-        election_type=state_row["election_type"] if state_row else None,
-        general_years=general_years,
-        next_election_year=next_election_year,
-        total_electors_latest=electors,
-    )
+        return StatsSummary(
+            **dict(row),
+            state_name=state_row["state_name"].replace("_", " ") if state_row and state_row["state_name"] else None,
+            election_type=state_row["election_type"] if state_row else None,
+            general_years=general_years,
+            next_election_year=next_election_year,
+            total_electors_latest=electors,
+        )
     except Exception as e:
         import traceback
         raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {e}\n{traceback.format_exc()}")
