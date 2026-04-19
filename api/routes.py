@@ -216,7 +216,8 @@ async def search_candidates(
 # ---------------------------------------------------------------------------
 @router.get("/stats/summary", response_model=StatsSummary)
 async def stats_summary():
-    pool = await get_pool()
+    try:
+        pool = await get_pool()
     row = await pool.fetchrow(
         "SELECT COUNT(*) AS total_records,"
         " COUNT(DISTINCT year) AS total_years,"
@@ -261,6 +262,9 @@ async def stats_summary():
         next_election_year=next_election_year,
         total_electors_latest=electors,
     )
+    except Exception as e:
+        import traceback
+        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {e}\n{traceback.format_exc()}")
 
 
 # ---------------------------------------------------------------------------
