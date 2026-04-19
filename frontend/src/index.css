@@ -910,6 +910,7 @@ th.sticky-col { z-index: 3; background: var(--bg2); }
 @media (max-width: 900px) {
   .pred-layout { flex-direction: column; }
   .pred-panel { width: 100%; min-width: 0; max-width: none; position: static; max-height: none; }
+  .pred-main { width: 100%; min-width: 0; overflow-x: hidden; }
   .bookmarks-list { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
   .hero-features { grid-template-columns: repeat(2, 1fr); }
 }
@@ -956,10 +957,14 @@ th.sticky-col { z-index: 3; background: var(--bg2); }
   /* Meta info */
   .meta { flex-wrap: wrap; gap: 6px; font-size: 12px; }
 
-  /* Prediction cards */
-  .pred-cards { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
+  /* Prediction cards — single column on mobile */
+  .pred-cards { grid-template-columns: 1fr; gap: 8px; }
   .pred-card { padding: 12px; }
   .card-value { font-size: 22px; }
+
+  /* Prediction main area */
+  .pred-main { overflow-x: auto; }
+  .pred-main h2 { font-size: 16px; word-wrap: break-word; }
 
   /* Prediction toolbar */
   .pred-toolbar { flex-wrap: wrap; gap: 6px; }
@@ -1009,6 +1014,6 @@ th.sticky-col { z-index: 3; background: var(--bg2); }
   .otp-boxes { gap: 4px; }
   .otp-box { width: 36px; height: 44px; font-size: 18px; }
   .timeline-item { grid-template-columns: 30px 1fr 70px 40px; }
-  .pred-cards { grid-template-columns: 1fr 1fr; }
+  .pred-cards { grid-template-columns: 1fr; }
   .card-value { font-size: 20px; }
 }
