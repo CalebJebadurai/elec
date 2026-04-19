@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { Routes, Route, useNavigate, useLocation, useParams, Navigate } from 'react-router-dom';
 import StateOverview from './components/StateOverview';
 import ConstituencyList from './components/ConstituencyList';
 import ConstituencyDetail from './components/ConstituencyDetail';
@@ -18,14 +19,29 @@ import { DEFAULT_PREDICTION_PARAMS, normalizeParty, buildAffinityPresets } from 
 import { generateBaseline, applyNewParty, aggregateResults } from './engine/predictionEngine';
 import './index.css';
 
+// Wrapper for constituency detail to extract route param
+function ConstituencyDetailRoute({ onBack }) {
+  const { name } = useParams();
+  return <ConstituencyDetail name={decodeURIComponent(name)} onBack={onBack} />;
+}
+
+// Require auth — redirect to landing if not logged in
+function RequireAuth({ children, onPromptLogin }) {
+  const { user } = useAuth();
+  useEffect(() => {
+    if (!user) onPromptLogin();
+  }, [user, onPromptLogin]);
+  if (!user) return <Navigate to="/" replace />;
+  return children;
+}
+
 export default function App() {
   const { user } = useAuth();
-  const [tab, setTab] = useState('overview');
-  const [selected, setSelected] = useState(null);
+  const navigate = useNavigate();
+  const location = useLocation();
   const [showLogin, setShowLogin] = useState(false);
   const [showSave, setShowSave] = useState(false);
   const [showBookmarks, setShowBookmarks] = useState(false);
-  const [showCommunity, setShowCommunity] = useState(false);
 
   // App-level stats (drives dynamic headings)
   const [stats, setStats] = useState(null);
@@ -40,26 +56,32 @@ export default function App() {
     api.stats().then(setStats).catch(console.error);
   }, []);
 
+  // Redirect authenticated users from landing to overview
+  useEffect(() => {
+    if (user && location.pathname === '/') {
+      navigate('/overview', { replace: true });
+    }
+  }, [user, location.pathname, navigate]);
+
   function handleSelect(name) {
-    setSelected(name);
-    setTab('detail');
+    navigate(`/constituencies/${encodeURIComponent(name)}`);
   }
 
   function handleBack() {
-    setSelected(null);
-    setTab('constituencies');
+    navigate('/constituencies');
   }
 
-  // Load prediction data when tab is activated
+  // Load prediction data when on prediction route
+  const onPrediction = location.pathname === '/predictions';
   useEffect(() => {
-    if (tab === 'prediction' && !predData) {
+    if (onPrediction && !predData) {
       setPredLoading(true);
       api.predictionData()
         .then((data) => setPredData(data))
         .catch(console.error)
         .finally(() => setPredLoading(false));
     }
-  }, [tab, predData]);
+  }, [onPrediction, predData]);
 
   // Derive top parties and dynamic affinity presets from prediction data
   const topParties = useMemo(() => {
@@ -137,10 +159,14 @@ export default function App() {
     if (params) {
       setPredParams({ ...DEFAULT_PREDICTION_PARAMS, ...params });
       setShowBookmarks(false);
-      setShowCommunity(false);
-      setTab('prediction');
+      navigate('/predictions');
     }
-  }, []);
+  }, [navigate]);
+
+  const promptLogin = useCallback(() => setShowLogin(true), []);
+
+  // Determine active nav from path
+  const path = location.pathname;
 
   return (
     <ErrorBoundary>
@@ -166,138 +192,152 @@ export default function App() {
             </div>
           </div>
           <nav>
-            <button className={tab === 'overview' ? 'active' : ''} onClick={() => {
+            <button className={path === '/overview' ? 'active' : ''} onClick={() => {
               if (!user) { setShowLogin(true); return; }
-              setTab('overview'); setSelected(null);
+              navigate('/overview');
             }}>
               State Overview
             </button>
-            <button className={tab === 'constituencies' || tab === 'detail' ? 'active' : ''} onClick={() => {
+            <button className={path.startsWith('/constituencies') ? 'active' : ''} onClick={() => {
               if (!user) { setShowLogin(true); return; }
-              setTab('constituencies'); setSelected(null);
+              navigate('/constituencies');
             }}>
               Constituencies
             </button>
-            <button className={tab === 'prediction' ? 'active' : ''} onClick={() => {
+            <button className={path === '/predictions' ? 'active' : ''} onClick={() => {
               if (!user) { setShowLogin(true); return; }
-              setTab('prediction');
+              navigate('/predictions');
             }}>
               {stats?.next_election_year || 'Next'} Prediction
             </button>
-            <button className={tab === 'community' ? 'active' : ''} onClick={() => {
+            <button className={path === '/community' ? 'active' : ''} onClick={() => {
               if (!user) { setShowLogin(true); return; }
-              setTab('community');
+              navigate('/community');
             }}>
               Community
             </button>
           </nav>
         </header>
         <main>
-          {!user && tab === 'overview' && (
-            <div className="hero">
-              <div className="hero-glow" />
-              <div className="hero-content">
-                <span className="hero-badge">Free &amp; Open Source</span>
-                <h2 className="hero-title">
-                  Explore {stats?.total_years || ''} Years of<br />
-                  <span className="hero-accent">Election Data</span>
-                </h2>
-                <p className="hero-desc">
-                  Dive into {stats?.total_constituencies || '—'} constituencies, track party swings, 
-                  run what-if predictions, and share scenarios with the community.
-                </p>
-                <button className="hero-cta" onClick={() => setShowLogin(true)}>
-                  Get Started
-                  <span className="hero-cta-arrow">→</span>
-                </button>
-              </div>
-              <div className="hero-features">
-                <div className="hero-feature">
-                  <div className="hero-feature-icon">📊</div>
-                  <h3>State Overview</h3>
-                  <p>Vote share trends, party dominance, and turnout patterns across decades.</p>
-                </div>
-                <div className="hero-feature">
-                  <div className="hero-feature-icon">🗺️</div>
-                  <h3>Constituency Deep Dive</h3>
-                  <p>Swing history, winning margins, and candidate performance for every seat.</p>
-                </div>
-                <div className="hero-feature">
-                  <div className="hero-feature-icon">🔮</div>
-                  <h3>{stats?.next_election_year || 'Next'} Predictions</h3>
-                  <p>Model scenarios with anti-incumbency, turnout, and hypothetical new parties.</p>
-                </div>
-                <div className="hero-feature">
-                  <div className="hero-feature-icon">👥</div>
-                  <h3>Community</h3>
-                  <p>Share your prediction scenarios and vote on others' analyses.</p>
-                </div>
-              </div>
-              {stats && (
-                <div className="hero-stats">
-                  <div className="hero-stat">
-                    <span className="hero-stat-value">{stats.general_years.length}</span>
-                    <span className="hero-stat-label">Elections</span>
+          <Routes>
+            <Route path="/" element={
+              user ? <Navigate to="/overview" replace /> : (
+                <div className="hero">
+                  <div className="hero-glow" />
+                  <div className="hero-content">
+                    <span className="hero-badge">Free &amp; Open Source</span>
+                    <h2 className="hero-title">
+                      Explore {stats?.total_years || ''} Years of<br />
+                      <span className="hero-accent">Election Data</span>
+                    </h2>
+                    <p className="hero-desc">
+                      Dive into {stats?.total_constituencies || '—'} constituencies, track party swings, 
+                      run what-if predictions, and share scenarios with the community.
+                    </p>
+                    <button className="hero-cta" onClick={() => setShowLogin(true)}>
+                      Get Started
+                      <span className="hero-cta-arrow">→</span>
+                    </button>
                   </div>
-                  <div className="hero-stat">
-                    <span className="hero-stat-value">{stats.total_constituencies}</span>
-                    <span className="hero-stat-label">Constituencies</span>
+                  <div className="hero-features">
+                    <div className="hero-feature">
+                      <div className="hero-feature-icon">📊</div>
+                      <h3>State Overview</h3>
+                      <p>Vote share trends, party dominance, and turnout patterns across decades.</p>
+                    </div>
+                    <div className="hero-feature">
+                      <div className="hero-feature-icon">🗺️</div>
+                      <h3>Constituency Deep Dive</h3>
+                      <p>Swing history, winning margins, and candidate performance for every seat.</p>
+                    </div>
+                    <div className="hero-feature">
+                      <div className="hero-feature-icon">🔮</div>
+                      <h3>{stats?.next_election_year || 'Next'} Predictions</h3>
+                      <p>Model scenarios with anti-incumbency, turnout, and hypothetical new parties.</p>
+                    </div>
+                    <div className="hero-feature">
+                      <div className="hero-feature-icon">👥</div>
+                      <h3>Community</h3>
+                      <p>Share your prediction scenarios and vote on others' analyses.</p>
+                    </div>
                   </div>
-                  <div className="hero-stat">
-                    <span className="hero-stat-value">{stats.total_parties}</span>
-                    <span className="hero-stat-label">Parties</span>
-                  </div>
-                  <div className="hero-stat">
-                    <span className="hero-stat-value">{(stats.total_electors_latest / 1e6).toFixed(0)}M</span>
-                    <span className="hero-stat-label">Electors</span>
-                  </div>
+                  {stats && (
+                    <div className="hero-stats">
+                      <div className="hero-stat">
+                        <span className="hero-stat-value">{stats.general_years.length}</span>
+                        <span className="hero-stat-label">Elections</span>
+                      </div>
+                      <div className="hero-stat">
+                        <span className="hero-stat-value">{stats.total_constituencies}</span>
+                        <span className="hero-stat-label">Constituencies</span>
+                      </div>
+                      <div className="hero-stat">
+                        <span className="hero-stat-value">{stats.total_parties}</span>
+                        <span className="hero-stat-label">Parties</span>
+                      </div>
+                      <div className="hero-stat">
+                        <span className="hero-stat-value">{(stats.total_electors_latest / 1e6).toFixed(0)}M</span>
+                        <span className="hero-stat-label">Electors</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          )}
-          {user && tab === 'overview' && <StateOverview />}
-          {user && tab === 'constituencies' && <ConstituencyList onSelect={handleSelect} />}
-          {user && tab === 'detail' && selected && <ConstituencyDetail name={selected} onBack={handleBack} />}
-          {user && tab === 'prediction' && (
-            predLoading ? (
-              <div className="loading">Loading prediction data for {stats?.total_constituencies || ''} constituencies...</div>
-            ) : (
-              <>
-                <Disclaimer />
-                <div className="pred-toolbar">
-                  <button className="btn-sm btn-primary" onClick={() => setShowSave(true)}>
-                    Save Prediction
-                  </button>
-                  <button className="btn-sm btn-secondary" onClick={() => setShowBookmarks(!showBookmarks)}>
-                    {showBookmarks ? 'Hide' : 'My'} Bookmarks
-                  </button>
-                </div>
-                {showBookmarks && <MyBookmarks onLoad={handleLoadBookmark} />}
-                <div className="pred-layout">
-                  <PredictionPanel params={predParams} onChange={setPredParams} presets={dynamicPresets} topParties={topParties} />
-                  <div className="pred-main">
-                    <PredictionResults
-                      summary={summary}
-                      actualLatest={actualLatest}
-                      latestYear={predData?.latest_year}
-                      nextYear={stats?.next_election_year}
-                      newPartyColor={predParams.newPartyColor}
-                      newPartyName={predParams.newPartyName}
-                    />
-                    <PredictionConstituencyTable
-                      predictions={predictions}
-                      onOverride={handleConstituencyOverride}
-                      latestYear={predData?.latest_year}
-                      nextYear={stats?.next_election_year}
-                    />
-                  </div>
-                </div>
-              </>
-            )
-          )}
-          {user && tab === 'community' && (
-            <CommunityFeed onLoad={handleLoadBookmark} />
-          )}
+              )
+            } />
+            <Route path="/overview" element={
+              <RequireAuth onPromptLogin={promptLogin}><StateOverview /></RequireAuth>
+            } />
+            <Route path="/constituencies" element={
+              <RequireAuth onPromptLogin={promptLogin}><ConstituencyList onSelect={handleSelect} /></RequireAuth>
+            } />
+            <Route path="/constituencies/:name" element={
+              <RequireAuth onPromptLogin={promptLogin}><ConstituencyDetailRoute onBack={handleBack} /></RequireAuth>
+            } />
+            <Route path="/predictions" element={
+              <RequireAuth onPromptLogin={promptLogin}>
+                {predLoading ? (
+                  <div className="loading">Loading prediction data for {stats?.total_constituencies || ''} constituencies...</div>
+                ) : (
+                  <>
+                    <Disclaimer />
+                    <div className="pred-toolbar">
+                      <button className="btn-sm btn-primary" onClick={() => setShowSave(true)}>
+                        Save Prediction
+                      </button>
+                      <button className="btn-sm btn-secondary" onClick={() => setShowBookmarks(!showBookmarks)}>
+                        {showBookmarks ? 'Hide' : 'My'} Bookmarks
+                      </button>
+                    </div>
+                    {showBookmarks && <MyBookmarks onLoad={handleLoadBookmark} />}
+                    <div className="pred-layout">
+                      <PredictionPanel params={predParams} onChange={setPredParams} presets={dynamicPresets} topParties={topParties} />
+                      <div className="pred-main">
+                        <PredictionResults
+                          summary={summary}
+                          actualLatest={actualLatest}
+                          latestYear={predData?.latest_year}
+                          nextYear={stats?.next_election_year}
+                          newPartyColor={predParams.newPartyColor}
+                          newPartyName={predParams.newPartyName}
+                        />
+                        <PredictionConstituencyTable
+                          predictions={predictions}
+                          onOverride={handleConstituencyOverride}
+                          latestYear={predData?.latest_year}
+                          nextYear={stats?.next_election_year}
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+              </RequireAuth>
+            } />
+            <Route path="/community" element={
+              <RequireAuth onPromptLogin={promptLogin}><CommunityFeed onLoad={handleLoadBookmark} /></RequireAuth>
+            } />
+            {/* Catch-all: redirect to home */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
         </main>
         <footer className="app-footer">
           <div className="footer-content">
