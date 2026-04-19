@@ -264,9 +264,11 @@ async def seed_data(request: Request):
     import io as _io
     tsv_buf = _io.BytesIO()
     for row in reader:
+        # Map CSV headers (any case) to lowercase column names
+        lc_row = {k.lower(): v for k, v in row.items()}
         vals = []
         for col in columns:
-            v = row.get(col, "")
+            v = lc_row.get(col, "")
             vals.append(v if v != "" else "\\N")
         tsv_buf.write(("\t".join(vals) + "\n").encode("utf-8"))
     tsv_buf.seek(0)
