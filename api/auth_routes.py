@@ -1,5 +1,6 @@
 """Authentication routes: mobile OTP and Google account linking."""
 
+import logging
 import os
 import re
 import time as _time
@@ -14,6 +15,7 @@ from auth import create_token, require_user
 from database import get_pool
 
 auth_router = APIRouter()
+logger = logging.getLogger("security.auth")
 
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
 
@@ -105,6 +107,7 @@ async def verify_otp(body: VerifyOTPRequest):
     """
     # Verify Firebase ID token
     phone = await _verify_firebase_phone_token(body.firebase_id_token, body.mobile)
+    logger.info("OTP verified: phone=%s", phone[-4:].rjust(len(phone), '*'))
 
     pool = await get_pool()
 
@@ -120,6 +123,7 @@ async def verify_otp(body: VerifyOTPRequest):
             "RETURNING id, mobile, display_name, google_email, role, avatar_url",
             phone,
         )
+        logger.info("New user created: id=%s", row["id"])
 
     user = dict(row)
     token = create_token(user["id"], user["role"])
@@ -256,6 +260,7 @@ async def _verify_firebase_phone_token(id_token: str, expected_phone: str) -> st
     clean_phone = re.sub(r"[\s\-]", "", phone)
 
     if not clean_phone or not clean_phone.endswith(clean_expected[-10:]):
+        logger.warning("Phone mismatch: expected=%s got=%s", clean_expected[-4:], clean_phone[-4:] if clean_phone else "none")
         raise HTTPException(401, "Phone number mismatch")
 
     return clean_phone

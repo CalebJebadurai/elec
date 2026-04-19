@@ -9,4 +9,4 @@ COPY . .
 
 EXPOSE 8000
 
-CMD ["python", "-c", "import os; os.execlp('uvicorn', 'uvicorn', 'main:app', '--host', '0.0.0.0', '--port', os.environ.get('PORT', '8000'), '--workers', os.environ.get('WEB_CONCURRENCY', '2'))"]
+CMD ["python", "-c", "import os; os.execlp('uvicorn', 'uvicorn', 'main:app', '--host', '0.0.0.0', '--port', os.environ.get('PORT', '8000'), '--workers', os.environ.get('WEB_CONCURRENCY', '2'), '--proxy-headers', '--forwarded-allow-ips', '*')"]
