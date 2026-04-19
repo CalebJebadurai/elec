@@ -259,26 +259,27 @@ async def seed_data(request: Request):
         "tcpd_prof_second_desc", "election_type",
     ]
 
-    rows_inserted = 0
-    batch = []
+    # Use asyncpg copy_to_table for fast bulk insert — send as tab-delimited text
+    # which PostgreSQL COPY protocol auto-casts to column types
+    import io as _io
+    tsv_buf = _io.BytesIO()
     for row in reader:
-        values = []
+        vals = []
         for col in columns:
             v = row.get(col, "")
-            values.append(None if v == "" else v)
-        batch.append(values)
-        if len(batch) >= 500:
-            await pool.executemany(
-                f"INSERT INTO tcpd_ae ({', '.join(columns)}) VALUES ({', '.join(f'${i+1}' for i in range(len(columns)))})",
-                batch,
-            )
-            rows_inserted += len(batch)
-            batch = []
-    if batch:
-        await pool.executemany(
-            f"INSERT INTO tcpd_ae ({', '.join(columns)}) VALUES ({', '.join(f'${i+1}' for i in range(len(columns)))})",
-            batch,
+            vals.append(v if v != "" else "\\N")
+        tsv_buf.write(("\t".join(vals) + "\n").encode("utf-8"))
+    tsv_buf.seek(0)
+
+    async with pool.acquire() as conn:
+        await conn.copy_to_table(
+            "tcpd_ae",
+            columns=columns,
+            source=tsv_buf,
+            format="text",
+            schema_name="public",
         )
+        rows_inserted = await conn.fetchval("SELECT COUNT(*) FROM tcpd_ae")
         rows_inserted += len(batch)
 
     # Deduplicate
