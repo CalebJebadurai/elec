@@ -263,6 +263,7 @@ async def seed_data(request: Request):
     # which PostgreSQL COPY protocol auto-casts to column types
     import io as _io
     tsv_buf = _io.BytesIO()
+    row_count = 0
     for row in reader:
         # Map CSV headers (any case) to lowercase column names
         lc_row = {k.lower(): v for k, v in row.items()}
@@ -271,18 +272,21 @@ async def seed_data(request: Request):
             v = lc_row.get(col, "")
             vals.append(v if v != "" else "\\N")
         tsv_buf.write(("\t".join(vals) + "\n").encode("utf-8"))
+        row_count += 1
     tsv_buf.seek(0)
 
-    async with pool.acquire() as conn:
-        await conn.copy_to_table(
-            "tcpd_ae",
-            columns=columns,
-            source=tsv_buf,
-            format="text",
-            schema_name="public",
-        )
-        rows_inserted = await conn.fetchval("SELECT COUNT(*) FROM tcpd_ae")
-        rows_inserted += len(batch)
+    try:
+        async with pool.acquire() as conn:
+            await conn.copy_to_table(
+                "tcpd_ae",
+                columns=columns,
+                source=tsv_buf,
+                format="text",
+                schema_name="public",
+            )
+    except Exception as e:
+        import traceback
+        return JSONResponse(status_code=500, content={"detail": f"{type(e).__name__}: {e}", "traceback": traceback.format_exc()})
 
     # Deduplicate
     await pool.execute("""
@@ -295,7 +299,7 @@ async def seed_data(request: Request):
     """)
     final_count = await pool.fetchval("SELECT COUNT(*) FROM tcpd_ae")
 
-    return {"detail": "Seeded successfully", "rows_inserted": rows_inserted, "final_count": final_count}
+    return {"detail": "Seeded successfully", "rows_parsed": row_count, "final_count": final_count}
 
 
 @app.post("/admin/dedup", tags=["infra"])
