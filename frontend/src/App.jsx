@@ -101,11 +101,14 @@ export default function App() {
 
   const dynamicPresets = useMemo(() => buildAffinityPresets(topParties), [topParties]);
 
-  // Compute growth factor
+  // Compute growth factor (use custom totalElectors if set)
   const growthFactor = useMemo(() => {
     if (!predData) return 1;
+    if (predParams.totalElectors) {
+      return predParams.totalElectors / predData.total_electors_latest;
+    }
     return predData.total_electors_next / predData.total_electors_latest;
-  }, [predData]);
+  }, [predData, predParams.totalElectors]);
 
   // Compute baseline predictions (only re-runs when core params change)
   const baseline = useMemo(() => {
