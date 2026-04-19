@@ -595,6 +595,11 @@ th.sticky-col { z-index: 3; background: var(--bg2); }
   display: flex; align-items: center; justify-content: center; gap: 8px;
 }
 .modal-btn-google:hover:not(:disabled) { background: #f7f8f8; }
+.modal-btn-skip {
+  background: transparent; color: #888; border: none; margin-top: 8px;
+  font-size: 13px; cursor: pointer;
+}
+.modal-btn-skip:hover { color: #bbb; }
 
 /* Phone input with country selector */
 .phone-input-row {

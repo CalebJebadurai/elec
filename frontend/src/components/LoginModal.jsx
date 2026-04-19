@@ -32,11 +32,11 @@ const COUNTRY_CODES = [
   { flag: '🇳🇿', code: '+64', short: 'NZ' },
 ];
 
-export default function LoginModal({ onClose, initialStep = 'phone' }) {
+export default function LoginModal({ onClose }) {
   const { login, linkGoogle } = useAuth();
   const [mobile, setMobile] = useState('');
   const [countryCode, setCountryCode] = useState('+91');
-  const [step, setStep] = useState(initialStep); // phone | otp | google | done
+  const [step, setStep] = useState('phone'); // phone | otp | google | done
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -237,7 +237,7 @@ export default function LoginModal({ onClose, initialStep = 'phone' }) {
 
         {step === 'google' && (
           <div>
-            <p className="modal-label">Phone verified! Now link your Google account for full access.</p>
+            <p className="modal-label">Phone verified! Link your Google account for a richer experience.</p>
             <button
               type="button"
               className="modal-btn modal-btn-google"
@@ -245,6 +245,13 @@ export default function LoginModal({ onClose, initialStep = 'phone' }) {
               disabled={loading}
             >
               {loading ? 'Linking...' : 'Sign in with Google'}
+            </button>
+            <button
+              type="button"
+              className="modal-btn modal-btn-skip"
+              onClick={onClose}
+            >
+              Skip for now
             </button>
           </div>
         )}
