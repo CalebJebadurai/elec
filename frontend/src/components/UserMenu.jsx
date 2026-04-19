@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { auth, googleProvider, signInWithPopup, GoogleAuthProvider } from '../firebase';
 
 export default function UserMenu() {
   const { user, logout, linkGoogle } = useAuth();
@@ -9,25 +10,16 @@ export default function UserMenu() {
 
   async function handleLinkGoogle() {
     try {
-      // Google Sign-In integration
-      if (!window.google) {
-        alert('Google Sign-In not configured');
-        return;
-      }
-      // Trigger Google One Tap or popup flow
-      // This is handled by the Google Identity Services library
-      const client = window.google.accounts.oauth2.initTokenClient({
-        client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
-        scope: 'openid email profile',
-        callback: async (response) => {
-          if (response.access_token) {
-            await linkGoogle(response.access_token);
-            setOpen(false);
-          }
-        },
-      });
-      client.requestAccessToken();
+      const result = await signInWithPopup(auth, googleProvider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      const idToken = await result.user.getIdToken();
+      const accessToken = credential?.accessToken || null;
+      await linkGoogle(idToken, accessToken);
+      setOpen(false);
     } catch (err) {
+      if (err.code === 'auth/popup-closed-by-user') {
+        return; // User cancelled, do nothing
+      }
       alert(err.message || 'Failed to link Google account');
     }
   }

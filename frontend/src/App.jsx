@@ -28,11 +28,8 @@ function ConstituencyDetailRoute({ onBack }) {
 }
 
 // Require auth — redirect to landing if not logged in
-function RequireAuth({ children, onPromptLogin }) {
+function RequireAuth({ children }) {
   const { user } = useAuth();
-  useEffect(() => {
-    if (!user) onPromptLogin();
-  }, [user, onPromptLogin]);
   if (!user) return <Navigate to="/" replace />;
   return children;
 }
@@ -175,8 +172,6 @@ export default function App() {
     }
   }, [navigate]);
 
-  const promptLogin = useCallback(() => setShowLogin(true), []);
-
   // Determine active nav from path
   const path = location.pathname;
 
@@ -298,16 +293,16 @@ export default function App() {
               )
             } />
             <Route path="/overview" element={
-              <RequireAuth onPromptLogin={promptLogin}><StateOverview /></RequireAuth>
+              <RequireAuth><StateOverview /></RequireAuth>
             } />
             <Route path="/constituencies" element={
-              <RequireAuth onPromptLogin={promptLogin}><ConstituencyList onSelect={handleSelect} /></RequireAuth>
+              <RequireAuth><ConstituencyList onSelect={handleSelect} /></RequireAuth>
             } />
             <Route path="/constituencies/:name" element={
-              <RequireAuth onPromptLogin={promptLogin}><ConstituencyDetailRoute onBack={handleBack} /></RequireAuth>
+              <RequireAuth><ConstituencyDetailRoute onBack={handleBack} /></RequireAuth>
             } />
             <Route path="/predictions" element={
-              <RequireAuth onPromptLogin={promptLogin}>
+              <RequireAuth>
                 {predLoading ? (
                   <div className="loading">Loading prediction data for {stats?.total_constituencies || ''} constituencies...</div>
                 ) : (
@@ -346,7 +341,7 @@ export default function App() {
               </RequireAuth>
             } />
             <Route path="/community" element={
-              <RequireAuth onPromptLogin={promptLogin}><CommunityFeed onLoad={handleLoadBookmark} /></RequireAuth>
+              <RequireAuth><CommunityFeed onLoad={handleLoadBookmark} /></RequireAuth>
             } />
             {/* Catch-all: redirect to home */}
             <Route path="*" element={<Navigate to="/" replace />} />
@@ -376,10 +371,7 @@ export default function App() {
         </footer>
 
         {/* Modals */}
-        {showLogin && <LoginModal initialStep={user && !user.google_email ? 'google' : 'phone'} onClose={() => setShowLogin(false)} />}
-        {user && !user.google_email && !showLogin && (
-          <LoginModal initialStep="google" onClose={() => {}} />
-        )}
+        {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
         {showSave && (
           <SaveBookmarkModal
             params={predParams}
