@@ -277,6 +277,8 @@ async def seed_data(request: Request):
 
     try:
         async with pool.acquire() as conn:
+            # Drop unique index if exists so COPY doesn't fail on CSV duplicates
+            await conn.execute("DROP INDEX IF EXISTS idx_tcpd_unique_entry")
             await conn.copy_to_table(
                 "tcpd_ae",
                 columns=columns,
@@ -296,6 +298,10 @@ async def seed_data(request: Request):
           AND a.constituency_no = b.constituency_no
           AND a.candidate = b.candidate
           AND a.poll_no IS NOT DISTINCT FROM b.poll_no
+    """)
+    await pool.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_tcpd_unique_entry
+          ON tcpd_ae (year, constituency_no, candidate, COALESCE(poll_no, 0))
     """)
     final_count = await pool.fetchval("SELECT COUNT(*) FROM tcpd_ae")
 
