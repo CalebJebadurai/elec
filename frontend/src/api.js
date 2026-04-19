@@ -18,6 +18,28 @@ function authHeaders() {
   return _token ? { Authorization: `Bearer ${_token}` } : {};
 }
 
+// ── In-memory cache for read-only endpoints ──────────────
+const _cache = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+function _cachedGet(path) {
+  const entry = _cache.get(path);
+  if (entry && Date.now() - entry.ts < CACHE_TTL) {
+    return Promise.resolve(entry.data);
+  }
+  // Deduplicate in-flight requests
+  if (entry && entry.promise) return entry.promise;
+  const promise = get(path).then((data) => {
+    _cache.set(path, { data, ts: Date.now() });
+    return data;
+  }).catch((err) => {
+    _cache.delete(path);
+    throw err;
+  });
+  _cache.set(path, { promise, ts: 0 });
+  return promise;
+}
+
 async function get(path) {
   const res = await fetch(`${BASE}${path}`, {
     headers: authHeaders(),
@@ -60,15 +82,15 @@ async function del(path) {
 }
 
 export const api = {
-  // Election data
-  stats: () => get('/stats/summary'),
-  years: () => get('/years'),
-  constituencies: () => get('/constituencies'),
-  stateSwing: () => get('/swings/state'),
-  constituencySwing: (name) => get(`/swings/constituency/${encodeURIComponent(name)}`),
-  allConstituencySwings: () => get('/swings/constituencies'),
-  parties: () => get('/parties'),
-  predictionData: () => get('/predict/data'),
+  // Election data (cached — these are read-only / rarely change)
+  stats: () => _cachedGet('/stats/summary'),
+  years: () => _cachedGet('/years'),
+  constituencies: () => _cachedGet('/constituencies'),
+  stateSwing: () => _cachedGet('/swings/state'),
+  constituencySwing: (name) => _cachedGet(`/swings/constituency/${encodeURIComponent(name)}`),
+  allConstituencySwings: () => _cachedGet('/swings/constituencies'),
+  parties: () => _cachedGet('/parties'),
+  predictionData: () => _cachedGet('/predict/data'),
 
   // Auth
   verifyOtp: (mobile, firebase_id_token) =>
