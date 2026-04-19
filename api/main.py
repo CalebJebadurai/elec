@@ -220,3 +220,76 @@ async def health():
     pool = await get_pool()
     await pool.fetchval("SELECT 1")
     return {"status": "ok"}
+
+
+@app.post("/admin/seed", tags=["infra"])
+async def seed_data(request: Request):
+    """Seed the database with CSV data sent via POST body.
+    Only works when the tcpd_ae table is empty (safety check).
+    Expects: CSV text in request body with Content-Type text/csv.
+    """
+    import csv
+    import io
+
+    seed_secret = os.environ.get("SEED_SECRET", "")
+    auth_header = request.headers.get("Authorization", "")
+    if not seed_secret or auth_header != f"Bearer {seed_secret}":
+        return JSONResponse(status_code=403, content={"detail": "Forbidden"})
+
+    pool = await get_pool()
+    count = await pool.fetchval("SELECT COUNT(*) FROM tcpd_ae")
+    if count > 0:
+        return {"detail": f"Table already has {count} rows. Truncate first.", "rows": count}
+
+    body = await request.body()
+    text = body.decode("utf-8")
+    reader = csv.DictReader(io.StringIO(text))
+
+    columns = [
+        "state_name", "assembly_no", "constituency_no", "year", "month",
+        "delim_id", "poll_no", "position", "candidate", "sex", "party",
+        "votes", "age", "candidate_type", "valid_votes", "electors",
+        "constituency_name", "constituency_type", "district_name", "sub_region",
+        "n_cand", "turnout_percentage", "vote_share_percentage", "deposit_lost",
+        "margin", "margin_percentage", "enop", "pid", "party_type_tcpd",
+        "party_id", "last_poll", "contested", "last_party", "last_party_id",
+        "last_constituency_name", "same_constituency", "same_party", "no_terms",
+        "turncoat", "incumbent", "recontest", "myneta_education",
+        "tcpd_prof_main", "tcpd_prof_main_desc", "tcpd_prof_second",
+        "tcpd_prof_second_desc", "election_type",
+    ]
+
+    rows_inserted = 0
+    batch = []
+    for row in reader:
+        values = []
+        for col in columns:
+            v = row.get(col, "")
+            values.append(None if v == "" else v)
+        batch.append(values)
+        if len(batch) >= 500:
+            await pool.executemany(
+                f"INSERT INTO tcpd_ae ({', '.join(columns)}) VALUES ({', '.join(f'${i+1}' for i in range(len(columns)))})",
+                batch,
+            )
+            rows_inserted += len(batch)
+            batch = []
+    if batch:
+        await pool.executemany(
+            f"INSERT INTO tcpd_ae ({', '.join(columns)}) VALUES ({', '.join(f'${i+1}' for i in range(len(columns)))})",
+            batch,
+        )
+        rows_inserted += len(batch)
+
+    # Deduplicate
+    await pool.execute("""
+        DELETE FROM tcpd_ae a USING tcpd_ae b
+        WHERE a.id > b.id
+          AND a.year = b.year
+          AND a.constituency_no = b.constituency_no
+          AND a.candidate = b.candidate
+          AND a.poll_no IS NOT DISTINCT FROM b.poll_no
+    """)
+    final_count = await pool.fetchval("SELECT COUNT(*) FROM tcpd_ae")
+
+    return {"detail": "Seeded successfully", "rows_inserted": rows_inserted, "final_count": final_count}
