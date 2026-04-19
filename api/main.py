@@ -322,3 +322,17 @@ async def dedup_data(request: Request):
     """)
     after = await pool.fetchval("SELECT COUNT(*) FROM tcpd_ae")
     return {"before": before, "after": after, "removed": before - after}
+
+
+@app.post("/admin/truncate", tags=["infra"])
+async def truncate_data(request: Request):
+    """Truncate tcpd_ae table."""
+    seed_secret = os.environ.get("SEED_SECRET", "")
+    auth_header = request.headers.get("Authorization", "")
+    if not seed_secret or auth_header != f"Bearer {seed_secret}":
+        return JSONResponse(status_code=403, content={"detail": "Forbidden"})
+
+    pool = await get_pool()
+    before = await pool.fetchval("SELECT COUNT(*) FROM tcpd_ae")
+    await pool.execute("TRUNCATE tcpd_ae RESTART IDENTITY")
+    return {"detail": "Truncated", "rows_removed": before}
