@@ -1,0 +1,14 @@
+pandas==2.2.3
+numpy==2.2.5
+scipy==1.15.2
+scikit-learn==1.6.1
+matplotlib==3.10.1
+seaborn==0.13.2
+plotly==6.1.0
+jupyterlab==4.4.1
+sqlalchemy==2.0.40
+psycopg2-binary==2.9.10
+nbformat==5.10.4
+shap==0.46.0
+xgboost==3.0.0
+kaleido==0.2.1

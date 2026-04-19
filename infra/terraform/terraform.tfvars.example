@@ -1,0 +1,18 @@
+# ── Production defaults for GCP deployment ────────────────
+# Copy this file to terraform.tfvars and fill in your values
+
+project_id     = "your-gcp-project-id"
+region         = "asia-south1"       # Mumbai — closest to Tamil Nadu
+domain         = "tnelection.in"     # Your domain
+db_password    = "CHANGE_ME"         # Use: openssl rand -base64 32
+jwt_secret     = "CHANGE_ME"         # Use: openssl rand -base64 48
+db_ha_enabled  = true                # Regional HA failover
+db_tier        = "db-custom-1-3840"  # 1 vCPU, 3.75GB RAM
+
+# Scaling
+api_min_instances = 1   # 1 = zero downtime; 0 = scale-to-zero (saves $)
+api_max_instances = 10  # Handles election-day traffic spikes
+
+# OAuth (optional — leave empty to disable)
+google_client_id = ""
+allowed_origins  = "" # Defaults to https://{domain}

@@ -1,0 +1,60 @@
+# Cloud Build: Build & deploy API to Cloud Run
+# Triggered on push to main branch (api/ changes)
+
+steps:
+  # Build Docker image
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "build"
+      - "-t"
+      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/elec/api:${SHORT_SHA}"
+      - "-t"
+      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/elec/api:latest"
+      - "./api"
+
+  # Push to Artifact Registry
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "push"
+      - "--all-tags"
+      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/elec/api"
+
+  # Deploy to Cloud Run (zero-downtime rolling update)
+  - name: "gcr.io/cloud-builders/gcloud"
+    args:
+      - "run"
+      - "services"
+      - "update"
+      - "elec-api"
+      - "--image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/elec/api:${SHORT_SHA}"
+      - "--region=${_REGION}"
+      - "--no-traffic"   # Deploy without routing traffic
+
+  # Health check on new revision
+  - name: "gcr.io/cloud-builders/gcloud"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        NEW_REV=$(gcloud run revisions list --service=elec-api --region=${_REGION} \
+          --sort-by=~creationTimestamp --limit=1 --format='value(name)')
+        echo "New revision: $${NEW_REV}"
+        # Wait for revision to be ready
+        gcloud run revisions describe $${NEW_REV} --region=${_REGION} \
+          --format='value(status.conditions[0].status)' | grep -q True
+
+  # Migrate traffic to new revision
+  - name: "gcr.io/cloud-builders/gcloud"
+    args:
+      - "run"
+      - "services"
+      - "update-traffic"
+      - "elec-api"
+      - "--region=${_REGION}"
+      - "--to-latest"
+
+substitutions:
+  _REGION: "asia-south1"
+
+options:
+  logging: CLOUD_LOGGING_ONLY
