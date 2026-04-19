@@ -296,3 +296,29 @@ async def seed_data(request: Request):
     final_count = await pool.fetchval("SELECT COUNT(*) FROM tcpd_ae")
 
     return {"detail": "Seeded successfully", "rows_inserted": rows_inserted, "final_count": final_count}
+
+
+@app.post("/admin/dedup", tags=["infra"])
+async def dedup_data(request: Request):
+    """Deduplicate tcpd_ae table and create unique index."""
+    seed_secret = os.environ.get("SEED_SECRET", "")
+    auth_header = request.headers.get("Authorization", "")
+    if not seed_secret or auth_header != f"Bearer {seed_secret}":
+        return JSONResponse(status_code=403, content={"detail": "Forbidden"})
+
+    pool = await get_pool()
+    before = await pool.fetchval("SELECT COUNT(*) FROM tcpd_ae")
+    await pool.execute("""
+        DELETE FROM tcpd_ae a USING tcpd_ae b
+        WHERE a.id > b.id
+          AND a.year = b.year
+          AND a.constituency_no = b.constituency_no
+          AND a.candidate = b.candidate
+          AND a.poll_no IS NOT DISTINCT FROM b.poll_no
+    """)
+    await pool.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_tcpd_unique_entry
+          ON tcpd_ae (year, constituency_no, candidate, COALESCE(poll_no, 0))
+    """)
+    after = await pool.fetchval("SELECT COUNT(*) FROM tcpd_ae")
+    return {"before": before, "after": after, "removed": before - after}
