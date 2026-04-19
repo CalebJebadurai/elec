@@ -9,5 +9,4 @@ COPY . .
 
 EXPOSE 8000
 
-# $PORT is injected by Railway/Render/Fly.io — falls back to 8000 for Docker Compose
-CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["python", "-c", "import os; os.execlp('uvicorn', 'uvicorn', 'main:app', '--host', '0.0.0.0', '--port', os.environ.get('PORT', '8000'))"]
