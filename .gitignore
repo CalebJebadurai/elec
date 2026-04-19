@@ -1,0 +1,57 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Build
+dist/
+build/
+*.egg-info/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+pgdata/
+
+# Jupyter
+.ipynb_checkpoints/
+datascience/output/*.png
+datascience/output/*.html
+datascience/output/*.json
+
+# Logs
+*.log
+
+# Raw data / prep work
+rough/
+TCPD_AE_Tamil_Nadu_2026-4-12.csv
+*.csv.gz
+
+# Copilot prompts (internal planning)
+.github/prompts/
+
+# Terraform
+infra/terraform/.terraform/
+infra/terraform/*.tfstate
+infra/terraform/*.tfstate.backup
+infra/terraform/terraform.tfvars
+
+# Unused boilerplate
+frontend/src/assets/react.svg
+frontend/src/assets/vite.svg
