@@ -192,8 +192,9 @@ th.sticky-col { z-index: 3; background: var(--bg2); }
   header { padding: 16px 0 10px; margin-bottom: 12px; }
   header h1 { font-size: 18px; }
   .subtitle { font-size: 11px; margin-bottom: 10px; }
-  .header-top { flex-wrap: wrap; gap: 8px; }
-  .header-actions { padding-top: 0; }
+  .header-top { flex-direction: row; align-items: center; gap: 8px; }
+  .header-actions { padding-top: 0; flex-shrink: 0; }
+  .btn-login { padding: 6px 14px; font-size: 13px; }
 
   /* Nav: horizontal scroll instead of overflow */
   nav { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; gap: 6px;
