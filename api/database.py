@@ -1,4 +1,5 @@
 import os
+import ssl
 import asyncpg
 
 DATABASE_URL = os.environ.get(
@@ -8,16 +9,27 @@ DATABASE_URL = os.environ.get(
 pool: asyncpg.Pool | None = None
 
 
+def _get_ssl_context():
+    """Return an SSL context for remote databases, None for localhost."""
+    url = DATABASE_URL.lower()
+    if "localhost" in url or "127.0.0.1" in url or "host.docker" in url:
+        return None
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE  # Railway/managed DBs use self-signed certs
+    return ctx
+
+
 async def get_pool() -> asyncpg.Pool:
     global pool
     if pool is None:
-        # Cloud SQL uses Unix sockets: ?host=/cloudsql/project:region:instance
-        # asyncpg needs dsn= for URLs with query params
+        ssl_ctx = _get_ssl_context()
         pool = await asyncpg.create_pool(
             dsn=DATABASE_URL,
             min_size=2,
             max_size=10,
             command_timeout=30,
+            ssl=ssl_ctx,
         )
     return pool
 

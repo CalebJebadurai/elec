@@ -32,6 +32,13 @@ class CreateBookmarkRequest(BaseModel):
     def validate_description(cls, v: str) -> str:
         return v.strip()[:500]
 
+    @field_validator("params")
+    @classmethod
+    def validate_params(cls, v: dict) -> dict:
+        if len(json.dumps(v)) > 10_000:
+            raise ValueError("Params too large (max 10KB)")
+        return v
+
 
 class UpdateBookmarkRequest(BaseModel):
     title: str | None = None

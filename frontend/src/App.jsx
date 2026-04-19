@@ -29,13 +29,14 @@ function ConstituencyDetailRoute({ onBack }) {
 
 // Require auth — redirect to landing if not logged in
 function RequireAuth({ children }) {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  if (loading) return <div className="loading">Loading…</div>;
   if (!user) return <Navigate to="/" replace />;
   return children;
 }
 
 export default function App() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [showLogin, setShowLogin] = useState(false);
@@ -229,7 +230,7 @@ export default function App() {
           <Suspense fallback={<Loading />}>
           <Routes>
             <Route path="/" element={
-              user ? <Navigate to="/overview" replace /> : (
+              (!loading && user) ? <Navigate to="/overview" replace /> : (
                 <div className="hero">
                   <div className="hero-glow" />
                   <div className="hero-content">

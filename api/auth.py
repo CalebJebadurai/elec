@@ -14,7 +14,9 @@ if not JWT_SECRET or JWT_SECRET in ("change-me", "change_me_to_a_random_64_char_
         "Set a strong random secret in your .env file."
     )
 JWT_ALGORITHM = os.environ.get("JWT_ALGORITHM", "HS256")
-JWT_EXPIRY_HOURS = int(os.environ.get("JWT_EXPIRY_HOURS", "72"))
+JWT_EXPIRY_HOURS = int(os.environ.get("JWT_EXPIRY_HOURS", "24"))
+JWT_AUDIENCE = "elec-api"
+
 
 _bearer = HTTPBearer(auto_error=False)
 
@@ -23,6 +25,7 @@ def create_token(user_id: int, role: str = "user") -> str:
     payload = {
         "sub": str(user_id),
         "role": role,
+        "aud": JWT_AUDIENCE,
         "exp": datetime.now(timezone.utc) + timedelta(hours=JWT_EXPIRY_HOURS),
         "iat": datetime.now(timezone.utc),
     }
@@ -31,7 +34,7 @@ def create_token(user_id: int, role: str = "user") -> str:
 
 def decode_token(token: str) -> dict:
     try:
-        return jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        return jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM], audience=JWT_AUDIENCE)
     except jwt.ExpiredSignatureError:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Token expired")
     except jwt.InvalidTokenError:
