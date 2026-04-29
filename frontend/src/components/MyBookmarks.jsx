@@ -20,7 +20,9 @@ export default function MyBookmarks({ onLoad }) {
     }
   }, [user]);
 
-  useEffect(() => { fetch(); }, [fetch]);
+  useEffect(() => {
+    fetch();
+  }, [fetch]);
 
   async function handleDelete(id) {
     try {
@@ -36,9 +38,7 @@ export default function MyBookmarks({ onLoad }) {
       const updated = await api.updateBookmark(bookmark.id, {
         is_public: !bookmark.is_public,
       });
-      setBookmarks((prev) =>
-        prev.map((b) => (b.id === bookmark.id ? updated : b))
-      );
+      setBookmarks((prev) => prev.map((b) => (b.id === bookmark.id ? updated : b)));
     } catch (err) {
       console.error(err);
     }
@@ -64,14 +64,17 @@ export default function MyBookmarks({ onLoad }) {
             <div className="bookmark-header">
               <h4 className="bookmark-title">{b.title}</h4>
               <div className="bookmark-meta">
+                {b.params?.state_name && (
+                  <span className="badge badge-state">
+                    {b.params.state_name.replace(/_/g, ' ')}
+                  </span>
+                )}
                 {b.is_public ? (
                   <span className="badge badge-public">Public</span>
                 ) : (
                   <span className="badge badge-private">Private</span>
                 )}
-                <span className="bookmark-date">
-                  {new Date(b.created_at).toLocaleDateString()}
-                </span>
+                <span className="bookmark-date">{new Date(b.created_at).toLocaleDateString()}</span>
               </div>
             </div>
             {b.description && <p className="bookmark-desc">{b.description}</p>}
@@ -87,10 +90,7 @@ export default function MyBookmarks({ onLoad }) {
               <button className="btn-sm btn-primary" onClick={() => onLoad(b.params)}>
                 Load
               </button>
-              <button
-                className="btn-sm btn-secondary"
-                onClick={() => handleTogglePublic(b)}
-              >
+              <button className="btn-sm btn-secondary" onClick={() => handleTogglePublic(b)}>
                 {b.is_public ? 'Make Private' : 'Publish'}
               </button>
               <button className="btn-sm btn-danger" onClick={() => handleDelete(b.id)}>

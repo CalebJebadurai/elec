@@ -48,7 +48,13 @@ export default function UserMenu() {
               Link Google Account
             </button>
           )}
-          <button className="user-dropdown-btn logout" onClick={() => { logout(); setOpen(false); }}>
+          <button
+            className="user-dropdown-btn logout"
+            onClick={() => {
+              logout();
+              setOpen(false);
+            }}
+          >
             Sign Out
           </button>
         </div>

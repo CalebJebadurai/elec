@@ -1,11 +1,26 @@
 import { useMemo } from 'react';
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer,
-  CartesianGrid, Cell, ReferenceLine,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  CartesianGrid,
+  Cell,
+  ReferenceLine,
 } from 'recharts';
 import { partyColor, majorityMark } from '../constants';
 
-export default function PredictionResults({ summary, actualLatest, latestYear, nextYear, newPartyColor, newPartyName }) {
+export default function PredictionResults({
+  summary,
+  actualLatest,
+  latestYear,
+  nextYear,
+  newPartyColor,
+  newPartyName,
+}) {
   const MAJORITY_MARK = majorityMark(summary?.totalSeats || 234);
   const latestYr = latestYear || 'Previous';
   const nextYr = nextYear || 'Next';
@@ -70,9 +85,7 @@ export default function PredictionResults({ summary, actualLatest, latestYear, n
         <div className={`pred-card ${hasSimpleMajority ? 'majority' : 'hung'}`}>
           <div className="card-label">Predicted Outcome</div>
           <div className="card-value">
-            {hasSimpleMajority
-              ? `${leader.party} Majority`
-              : 'Hung Assembly'}
+            {hasSimpleMajority ? `${leader.party} Majority` : 'Hung Assembly'}
           </div>
           {leader && (
             <div className="card-sub">
@@ -88,9 +101,7 @@ export default function PredictionResults({ summary, actualLatest, latestYear, n
               {p.party}
             </div>
             <div className="card-value">{p.seats}</div>
-            <div className="card-sub">
-              {p.avgVoteShare.toFixed(1)}% avg vote share
-            </div>
+            <div className="card-sub">{p.avgVoteShare.toFixed(1)}% avg vote share</div>
           </div>
         ))}
 
@@ -103,7 +114,9 @@ export default function PredictionResults({ summary, actualLatest, latestYear, n
 
       {/* Seat projection chart */}
       <div className="panel">
-        <h3>Seat Projection: {latestYr} Actual vs {nextYr} Predicted</h3>
+        <h3>
+          Seat Projection: {latestYr} Actual vs {nextYr} Predicted
+        </h3>
         <ResponsiveContainer width="100%" height={350}>
           <BarChart data={seatsData} margin={{ top: 10, right: 30, left: 10, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#2a2a40" />
@@ -114,13 +127,23 @@ export default function PredictionResults({ summary, actualLatest, latestYear, n
               labelStyle={{ color: '#e0e0e0' }}
             />
             <Legend />
-            <ReferenceLine y={MAJORITY_MARK} stroke="#facc15" strokeDasharray="5 5" label={{ value: `Majority (${MAJORITY_MARK})`, fill: '#facc15', fontSize: 11 }} />
-            <Bar dataKey="actualLatest" name={`${latestYr} Actual`} fill="#555" radius={[4,4,0,0]}>
+            <ReferenceLine
+              y={MAJORITY_MARK}
+              stroke="#facc15"
+              strokeDasharray="5 5"
+              label={{ value: `Majority (${MAJORITY_MARK})`, fill: '#facc15', fontSize: 11 }}
+            />
+            <Bar
+              dataKey="actualLatest"
+              name={`${latestYr} Actual`}
+              fill="#555"
+              radius={[4, 4, 0, 0]}
+            >
               {seatsData.map((d) => (
                 <Cell key={d.party} fill={getBarColor(d.party)} fillOpacity={0.4} />
               ))}
             </Bar>
-            <Bar dataKey="predicted" name={`${nextYr} Predicted`} radius={[4,4,0,0]}>
+            <Bar dataKey="predicted" name={`${nextYr} Predicted`} radius={[4, 4, 0, 0]}>
               {seatsData.map((d) => (
                 <Cell key={d.party} fill={getBarColor(d.party)} />
               ))}
@@ -133,7 +156,10 @@ export default function PredictionResults({ summary, actualLatest, latestYear, n
       <div className="panel">
         <h3>Seat Change from {latestYr}</h3>
         <ResponsiveContainer width="100%" height={250}>
-          <BarChart data={seatsData.filter((d) => d.change !== 0)} margin={{ top: 10, right: 30, left: 10, bottom: 5 }}>
+          <BarChart
+            data={seatsData.filter((d) => d.change !== 0)}
+            margin={{ top: 10, right: 30, left: 10, bottom: 5 }}
+          >
             <CartesianGrid strokeDasharray="3 3" stroke="#2a2a40" />
             <XAxis dataKey="party" tick={{ fill: '#888', fontSize: 12 }} />
             <YAxis tick={{ fill: '#888', fontSize: 12 }} />
@@ -141,14 +167,11 @@ export default function PredictionResults({ summary, actualLatest, latestYear, n
               contentStyle={{ background: '#1a1a2e', border: '1px solid #2a2a40', borderRadius: 6 }}
             />
             <ReferenceLine y={0} stroke="#888" />
-            <Bar dataKey="change" name="Seat Change" radius={[4,4,0,0]}>
+            <Bar dataKey="change" name="Seat Change" radius={[4, 4, 0, 0]}>
               {seatsData
                 .filter((d) => d.change !== 0)
                 .map((d) => (
-                  <Cell
-                    key={d.party}
-                    fill={d.change > 0 ? '#4ade80' : '#f87171'}
-                  />
+                  <Cell key={d.party} fill={d.change > 0 ? '#4ade80' : '#f87171'} />
                 ))}
             </Bar>
           </BarChart>
@@ -159,15 +182,24 @@ export default function PredictionResults({ summary, actualLatest, latestYear, n
       <div className="panel">
         <h3>Average Vote Share by Party ({nextYr} Predicted)</h3>
         <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={voteShareData} layout="vertical" margin={{ top: 10, right: 30, left: 60, bottom: 5 }}>
+          <BarChart
+            data={voteShareData}
+            layout="vertical"
+            margin={{ top: 10, right: 30, left: 60, bottom: 5 }}
+          >
             <CartesianGrid strokeDasharray="3 3" stroke="#2a2a40" />
             <XAxis type="number" tick={{ fill: '#888', fontSize: 12 }} unit="%" />
-            <YAxis type="category" dataKey="party" tick={{ fill: '#888', fontSize: 12 }} width={55} />
+            <YAxis
+              type="category"
+              dataKey="party"
+              tick={{ fill: '#888', fontSize: 12 }}
+              width={55}
+            />
             <Tooltip
               contentStyle={{ background: '#1a1a2e', border: '1px solid #2a2a40', borderRadius: 6 }}
               formatter={(val) => [`${val}%`, 'Avg Vote Share']}
             />
-            <Bar dataKey="voteShare" name="Avg Vote Share %" radius={[0,4,4,0]}>
+            <Bar dataKey="voteShare" name="Avg Vote Share %" radius={[0, 4, 4, 0]}>
               {voteShareData.map((d) => (
                 <Cell key={d.party} fill={getBarColor(d.party)} />
               ))}

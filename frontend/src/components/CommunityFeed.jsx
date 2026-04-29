@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../api';
-import { partyColor } from '../constants';
 
 export default function CommunityFeed({ onLoad }) {
   const { user } = useAuth();
@@ -11,7 +10,8 @@ export default function CommunityFeed({ onLoad }) {
 
   useEffect(() => {
     setLoading(true);
-    api.listPublicBookmarks(sort)
+    api
+      .listPublicBookmarks(sort)
       .then(setPredictions)
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -24,7 +24,12 @@ export default function CommunityFeed({ onLoad }) {
       setPredictions((prev) =>
         prev.map((p) =>
           p.id === id
-            ? { ...p, like_count: result.like_count, dislike_count: result.dislike_count, my_vote: result.my_vote }
+            ? {
+                ...p,
+                like_count: result.like_count,
+                dislike_count: result.dislike_count,
+                my_vote: result.my_vote,
+              }
             : p
         )
       );
@@ -40,7 +45,8 @@ export default function CommunityFeed({ onLoad }) {
     if (params.antiIncumbencyPct != null) parts.push(`Anti-Inc: ${params.antiIncumbencyPct}%`);
     if (params.totalElectors) parts.push(`Voters: ${(params.totalElectors / 1e6).toFixed(1)}M`);
     if (params.turnoutPct != null) parts.push(`Turnout: ${params.turnoutPct}%`);
-    if (params.newPartyName) parts.push(`New: ${params.newPartyName} @ ${params.newPartyStatewideVoteShare}%`);
+    if (params.newPartyName)
+      parts.push(`New: ${params.newPartyName} @ ${params.newPartyStatewideVoteShare}%`);
     return parts.join(' · ');
   }
 
@@ -49,16 +55,10 @@ export default function CommunityFeed({ onLoad }) {
       <div className="feed-header">
         <h3>Community Predictions</h3>
         <div className="feed-sort">
-          <button
-            className={sort === 'recent' ? 'active' : ''}
-            onClick={() => setSort('recent')}
-          >
+          <button className={sort === 'recent' ? 'active' : ''} onClick={() => setSort('recent')}>
             Recent
           </button>
-          <button
-            className={sort === 'popular' ? 'active' : ''}
-            onClick={() => setSort('popular')}
-          >
+          <button className={sort === 'popular' ? 'active' : ''} onClick={() => setSort('popular')}>
             Popular
           </button>
         </div>
@@ -86,12 +86,18 @@ export default function CommunityFeed({ onLoad }) {
                 )}
                 <span className="feed-author-name">{p.author_name}</span>
               </div>
-              <span className="feed-date">
-                {new Date(p.created_at).toLocaleDateString()}
-              </span>
+              <span className="feed-date">{new Date(p.created_at).toLocaleDateString()}</span>
             </div>
 
             <h4 className="feed-title">{p.title}</h4>
+            {p.params?.state_name && (
+              <span
+                className="badge badge-state"
+                style={{ marginBottom: '0.25rem', display: 'inline-block' }}
+              >
+                {p.params.state_name.replace(/_/g, ' ')}
+              </span>
+            )}
             {p.description && <p className="feed-desc">{p.description}</p>}
             <p className="feed-params">{getParamsSummary(p.params)}</p>
 

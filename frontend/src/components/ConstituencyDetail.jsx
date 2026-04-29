@@ -1,23 +1,38 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid,
-  LineChart, Line, Cell, ReferenceLine,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  CartesianGrid,
+  LineChart,
+  Line,
+  Cell,
+  ReferenceLine,
 } from 'recharts';
 import { api } from '../api';
 import { partyColor, normalizeParty } from '../constants';
+import { useStateSelection } from '../contexts/StateContext';
 
 export default function ConstituencyDetail({ name, onBack }) {
+  const { selectedState, electionType } = useStateSelection();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!name) return;
     setLoading(true);
-    api.constituencySwing(name).then((d) => {
-      setData(d);
-      setLoading(false);
-    }).catch(() => setLoading(false));
-  }, [name]);
+    api
+      .constituencySwing(name, selectedState, electionType)
+      .then((d) => {
+        setData(d);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [name, selectedState, electionType]);
 
   if (loading) return <div className="loading">Loading {name}…</div>;
   if (!data) return <div className="loading">Constituency not found.</div>;
@@ -53,7 +68,9 @@ export default function ConstituencyDetail({ name, onBack }) {
 
   return (
     <div className="panel">
-      <button className="back-btn" onClick={onBack}>← Back to list</button>
+      <button className="back-btn" onClick={onBack}>
+        ← Back to list
+      </button>
 
       <div className="const-header">
         <h2>{data.constituency_name}</h2>
@@ -85,7 +102,10 @@ export default function ConstituencyDetail({ name, onBack }) {
           <YAxis stroke="#ccc" unit="%" />
           <Tooltip
             contentStyle={{ background: '#1e1e2e', border: '1px solid #444' }}
-            formatter={(val, _name, props) => [`${val?.toFixed(1)}%`, `${props.payload.party} — ${props.payload.winner}`]}
+            formatter={(val, _name, props) => [
+              `${val?.toFixed(1)}%`,
+              `${props.payload.party} — ${props.payload.winner}`,
+            ]}
           />
           <Bar dataKey="margin" name="Margin %">
             {marginData.map((d, i) => (
@@ -104,9 +124,37 @@ export default function ConstituencyDetail({ name, onBack }) {
           <YAxis yAxisId="right" orientation="right" stroke="#ccc" />
           <Tooltip contentStyle={{ background: '#1e1e2e', border: '1px solid #444' }} />
           <Legend />
-          <Line yAxisId="left" type="monotone" dataKey="turnout" stroke="#61dafb" strokeWidth={2} name="Turnout %" dot={{ r: 4 }} connectNulls />
-          <Line yAxisId="right" type="monotone" dataKey="enop" stroke="#ffa500" strokeWidth={2} name="ENOP" dot={{ r: 4 }} connectNulls />
-          <Line yAxisId="right" type="monotone" dataKey="candidates" stroke="#888" strokeWidth={1} strokeDasharray="5 5" name="Candidates" dot={{ r: 3 }} connectNulls />
+          <Line
+            yAxisId="left"
+            type="monotone"
+            dataKey="turnout"
+            stroke="#61dafb"
+            strokeWidth={2}
+            name="Turnout %"
+            dot={{ r: 4 }}
+            connectNulls
+          />
+          <Line
+            yAxisId="right"
+            type="monotone"
+            dataKey="enop"
+            stroke="#ffa500"
+            strokeWidth={2}
+            name="ENOP"
+            dot={{ r: 4 }}
+            connectNulls
+          />
+          <Line
+            yAxisId="right"
+            type="monotone"
+            dataKey="candidates"
+            stroke="#888"
+            strokeWidth={1}
+            strokeDasharray="5 5"
+            name="Candidates"
+            dot={{ r: 3 }}
+            connectNulls
+          />
         </LineChart>
       </ResponsiveContainer>
 
@@ -130,12 +178,26 @@ export default function ConstituencyDetail({ name, onBack }) {
               <tr key={r.year}>
                 <td>{r.year}</td>
                 <td>{r.winner}</td>
-                <td><span className="party-dot" style={{ background: partyColor(normalizeParty(r.winner_party)) }} />{r.winner_party}</td>
+                <td>
+                  <span
+                    className="party-dot"
+                    style={{ background: partyColor(normalizeParty(r.winner_party)) }}
+                  />
+                  {r.winner_party}
+                </td>
                 <td>{r.winner_votes?.toLocaleString()}</td>
                 <td>{r.runner_up || '—'}</td>
                 <td>{r.runner_up_party || '—'}</td>
-                <td>{r.margin_percentage != null ? `${parseFloat(r.margin_percentage).toFixed(1)}%` : '—'}</td>
-                <td>{r.turnout_percentage != null ? `${parseFloat(r.turnout_percentage).toFixed(1)}%` : '—'}</td>
+                <td>
+                  {r.margin_percentage != null
+                    ? `${parseFloat(r.margin_percentage).toFixed(1)}%`
+                    : '—'}
+                </td>
+                <td>
+                  {r.turnout_percentage != null
+                    ? `${parseFloat(r.turnout_percentage).toFixed(1)}%`
+                    : '—'}
+                </td>
               </tr>
             ))}
           </tbody>
