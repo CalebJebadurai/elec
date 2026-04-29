@@ -8,8 +8,8 @@ export default function Disclaimer() {
   if (dismissed) return null;
 
   return (
-    <div className="disclaimer-banner">
-      <div className="disclaimer-content">
+    <div className="bg-warning/10 border border-warning/30 rounded-xl p-4 mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div className="text-xs text-neutral-200 leading-relaxed">
         <strong>⚠ Disclaimer:</strong> These predictions are mathematical simulations based on
         historical patterns and user-adjustable parameters. They <em>do not</em> forecast actual
         election outcomes. Results depend on alliance dynamics, candidate selection, local issues,
@@ -17,7 +17,7 @@ export default function Disclaimer() {
         exploration only.
       </div>
       <button
-        className="disclaimer-close"
+        className="bg-warning/20 text-warning text-xs px-4 py-2 rounded-md hover:bg-warning/30 transition-colors cursor-pointer whitespace-nowrap min-h-[44px] md:min-h-0"
         onClick={() => {
           setDismissed(true);
           sessionStorage.setItem('disclaimer_dismissed', 'true');

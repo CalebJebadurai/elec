@@ -34,8 +34,16 @@ export default function ConstituencyDetail({ name, onBack }) {
       .catch(() => setLoading(false));
   }, [name, selectedState, electionType]);
 
-  if (loading) return <div className="loading">Loading {name}…</div>;
-  if (!data) return <div className="loading">Constituency not found.</div>;
+  if (loading)
+    return (
+      <div className="py-8 space-y-4">
+        <div className="animate-pulse bg-neutral-800 rounded h-6 w-48" />
+        <div className="animate-pulse bg-neutral-800 rounded-lg h-32" />
+        <div className="animate-pulse bg-neutral-800 rounded-lg h-[40vh]" />
+      </div>
+    );
+  if (!data)
+    return <div className="text-center py-16 text-neutral-400">Constituency not found.</div>;
 
   const results = data.results || [];
 
@@ -67,100 +75,113 @@ export default function ConstituencyDetail({ name, onBack }) {
   }));
 
   return (
-    <div className="panel">
-      <button className="back-btn" onClick={onBack}>
+    <div className="mb-8">
+      <button
+        className="text-primary-400 text-sm mb-4 hover:underline cursor-pointer"
+        onClick={onBack}
+      >
         ← Back to list
       </button>
 
-      <div className="const-header">
-        <h2>{data.constituency_name}</h2>
-        <div className="meta">
+      <div className="mb-4">
+        <h2 className="text-lg font-semibold text-white md:text-xl">{data.constituency_name}</h2>
+        <div className="flex gap-2 text-xs text-neutral-400 mt-1">
           <span>{data.district_name}</span>
+          <span>·</span>
           <span>{data.sub_region}</span>
         </div>
       </div>
 
-      <h3>Winning Party Timeline</h3>
-      <div className="timeline">
+      <h3 className="text-base font-semibold text-primary-400 mb-3">Winning Party Timeline</h3>
+      <div className="space-y-1 mb-4">
         {winnerTimeline.map((w) => (
-          <div key={w.year} className="timeline-item">
-            <div className="tl-year">{w.year}</div>
-            <div className="tl-bar" style={{ background: partyColor(w.party) }}>
-              <span className="tl-party">{w.party}</span>
+          <div key={w.year} className="flex items-center gap-2 text-xs">
+            <div className="w-10 text-neutral-400 font-mono">{w.year}</div>
+            <div
+              className="flex-1 h-6 rounded flex items-center px-2 text-white text-[10px] font-semibold"
+              style={{ background: partyColor(w.party) }}
+            >
+              {w.party}
             </div>
-            <div className="tl-name">{w.winner}</div>
-            <div className="tl-margin">{w.margin != null ? `${w.margin.toFixed(1)}%` : '—'}</div>
+            <div className="w-24 text-neutral-300 truncate hidden md:block">{w.winner}</div>
+            <div className="w-10 text-right text-neutral-400">
+              {w.margin != null ? `${w.margin.toFixed(1)}%` : '—'}
+            </div>
           </div>
         ))}
       </div>
 
-      <h3>Victory Margin Trend</h3>
-      <ResponsiveContainer width="100%" height={300}>
-        <BarChart data={marginData}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-          <XAxis dataKey="year" stroke="#ccc" />
-          <YAxis stroke="#ccc" unit="%" />
-          <Tooltip
-            contentStyle={{ background: '#1e1e2e', border: '1px solid #444' }}
-            formatter={(val, _name, props) => [
-              `${val?.toFixed(1)}%`,
-              `${props.payload.party} — ${props.payload.winner}`,
-            ]}
-          />
-          <Bar dataKey="margin" name="Margin %">
-            {marginData.map((d, i) => (
-              <Cell key={i} fill={partyColor(d.party)} />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
+      <h3 className="text-base font-semibold text-primary-400 mt-6 mb-3">Victory Margin Trend</h3>
+      <div className="min-h-[200px] h-[40vh] max-h-[300px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={marginData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+            <XAxis dataKey="year" stroke="#ccc" />
+            <YAxis stroke="#ccc" unit="%" />
+            <Tooltip
+              contentStyle={{ background: '#1e1e2e', border: '1px solid #444' }}
+              formatter={(val, _name, props) => [
+                `${val?.toFixed(1)}%`,
+                `${props.payload.party} — ${props.payload.winner}`,
+              ]}
+            />
+            <Bar dataKey="margin" name="Margin %">
+              {marginData.map((d, i) => (
+                <Cell key={i} fill={partyColor(d.party)} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
 
-      <h3>Turnout & Competition</h3>
-      <ResponsiveContainer width="100%" height={300}>
-        <LineChart data={turnoutData}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-          <XAxis dataKey="year" stroke="#ccc" />
-          <YAxis yAxisId="left" stroke="#ccc" unit="%" />
-          <YAxis yAxisId="right" orientation="right" stroke="#ccc" />
-          <Tooltip contentStyle={{ background: '#1e1e2e', border: '1px solid #444' }} />
-          <Legend />
-          <Line
-            yAxisId="left"
-            type="monotone"
-            dataKey="turnout"
-            stroke="#61dafb"
-            strokeWidth={2}
-            name="Turnout %"
-            dot={{ r: 4 }}
-            connectNulls
-          />
-          <Line
-            yAxisId="right"
-            type="monotone"
-            dataKey="enop"
-            stroke="#ffa500"
-            strokeWidth={2}
-            name="ENOP"
-            dot={{ r: 4 }}
-            connectNulls
-          />
-          <Line
-            yAxisId="right"
-            type="monotone"
-            dataKey="candidates"
-            stroke="#888"
-            strokeWidth={1}
-            strokeDasharray="5 5"
-            name="Candidates"
-            dot={{ r: 3 }}
-            connectNulls
-          />
-        </LineChart>
-      </ResponsiveContainer>
+      <h3 className="text-base font-semibold text-primary-400 mt-6 mb-3">Turnout & Competition</h3>
+      <div className="min-h-[200px] h-[40vh] max-h-[300px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={turnoutData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+            <XAxis dataKey="year" stroke="#ccc" />
+            <YAxis yAxisId="left" stroke="#ccc" unit="%" />
+            <YAxis yAxisId="right" orientation="right" stroke="#ccc" />
+            <Tooltip contentStyle={{ background: '#1e1e2e', border: '1px solid #444' }} />
+            <Legend />
+            <Line
+              yAxisId="left"
+              type="monotone"
+              dataKey="turnout"
+              stroke="#61dafb"
+              strokeWidth={2}
+              name="Turnout %"
+              dot={{ r: 4 }}
+              connectNulls
+            />
+            <Line
+              yAxisId="right"
+              type="monotone"
+              dataKey="enop"
+              stroke="#ffa500"
+              strokeWidth={2}
+              name="ENOP"
+              dot={{ r: 4 }}
+              connectNulls
+            />
+            <Line
+              yAxisId="right"
+              type="monotone"
+              dataKey="candidates"
+              stroke="#888"
+              strokeWidth={1}
+              strokeDasharray="5 5"
+              name="Candidates"
+              dot={{ r: 3 }}
+              connectNulls
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
 
-      <h3>Election Results</h3>
-      <div className="results-table-wrap">
-        <table className="results-table">
+      <h3 className="text-base font-semibold text-primary-400 mt-6 mb-3">Election Results</h3>
+      <div className="overflow-x-auto">
+        <table className="const-grid">
           <thead>
             <tr>
               <th>Year</th>
@@ -180,7 +201,7 @@ export default function ConstituencyDetail({ name, onBack }) {
                 <td>{r.winner}</td>
                 <td>
                   <span
-                    className="party-dot"
+                    className="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-middle"
                     style={{ background: partyColor(normalizeParty(r.winner_party)) }}
                   />
                   {r.winner_party}

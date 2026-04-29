@@ -57,26 +57,30 @@ export default function PartyStrengthChart({
   }, [partyData]);
 
   return (
-    <div className="party-strength">
-      <div className="national-controls">
-        <div className="control-group">
-          <label>Election Type</label>
-          <select value={electionType} onChange={(e) => onElectionTypeChange(e.target.value)}>
+    <div className="mb-8">
+      <div className="flex flex-col gap-3 mb-4 md:flex-row md:items-end">
+        <div>
+          <label className="block text-xs text-neutral-400 mb-1">Election Type</label>
+          <select
+            value={electionType}
+            onChange={(e) => onElectionTypeChange(e.target.value)}
+            className="bg-neutral-900 border border-neutral-800 text-neutral-200 rounded-md px-3 py-2 text-sm cursor-pointer"
+          >
             <option value="AE">Assembly (AE)</option>
             <option value="GE">Lok Sabha (GE)</option>
           </select>
         </div>
-        <div className="control-group">
-          <label>View</label>
-          <div className="tab-group">
+        <div>
+          <label className="block text-xs text-neutral-400 mb-1">View</label>
+          <div className="flex gap-1">
             <button
-              className={`tab-btn ${view === 'bar' ? 'active' : ''}`}
+              className={`px-3 py-1.5 text-xs rounded-md border transition-colors cursor-pointer ${view === 'bar' ? 'bg-primary-400 text-black border-primary-400' : 'bg-neutral-900 text-neutral-300 border-neutral-700 hover:bg-neutral-800'}`}
               onClick={() => setView('bar')}
             >
               Seats Chart
             </button>
             <button
-              className={`tab-btn ${view === 'map' ? 'active' : ''}`}
+              className={`px-3 py-1.5 text-xs rounded-md border transition-colors cursor-pointer ${view === 'map' ? 'bg-primary-400 text-black border-primary-400' : 'bg-neutral-900 text-neutral-300 border-neutral-700 hover:bg-neutral-800'}`}
               onClick={() => setView('map')}
             >
               Party Map
@@ -86,11 +90,11 @@ export default function PartyStrengthChart({
       </div>
 
       {/* Party selector */}
-      <div className="party-selector">
+      <div className="flex flex-wrap gap-2 mb-4">
         {top10.map((p) => (
           <button
             key={p.party}
-            className={`party-pill ${selected === p.party ? 'active' : ''}`}
+            className="px-3 py-1 text-xs rounded-full border cursor-pointer transition-colors min-h-[36px]"
             style={{
               borderColor: partyColor(p.party),
               background: selected === p.party ? partyColor(p.party) : 'transparent',
@@ -105,12 +109,12 @@ export default function PartyStrengthChart({
 
       {/* Selected party detail */}
       {selected && (
-        <div className="party-detail-panel">
+        <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-3 mb-4">
           {(() => {
             const p = partyData.find((d) => d.party === selected);
             if (!p) return null;
             return (
-              <div className="party-detail-stats">
+              <div className="flex flex-wrap gap-4 text-xs text-neutral-300">
                 <span>
                   <strong>{p.total_seats_won.toLocaleString()}</strong> total seats
                 </span>
@@ -130,49 +134,57 @@ export default function PartyStrengthChart({
       )}
 
       {view === 'bar' && (
-        <div className="chart-section">
-          <h3>National Seat Wins — Top Parties</h3>
-          <ResponsiveContainer width="100%" height={400}>
-            <BarChart data={top10} layout="vertical" margin={{ left: 60, right: 20 }}>
-              <XAxis type="number" />
-              <YAxis type="category" dataKey="party" width={55} tick={{ fontSize: 12 }} />
-              <Tooltip formatter={(v) => v.toLocaleString()} />
-              <Bar dataKey="total_seats_won" name="Total Seats Won">
-                {top10.map((p) => (
-                  <Cell
-                    key={p.party}
-                    fill={partyColor(p.party)}
-                    opacity={selected && selected !== p.party ? 0.3 : 1}
-                  />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+        <div className="mb-6">
+          <h3 className="text-base font-semibold text-primary-400 mb-3">
+            National Seat Wins — Top Parties
+          </h3>
+          <div className="min-h-[200px] h-[40vh] max-h-[400px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={top10} layout="vertical" margin={{ left: 60, right: 20 }}>
+                <XAxis type="number" />
+                <YAxis type="category" dataKey="party" width={55} tick={{ fontSize: 12 }} />
+                <Tooltip formatter={(v) => v.toLocaleString()} />
+                <Bar dataKey="total_seats_won" name="Total Seats Won">
+                  {top10.map((p) => (
+                    <Cell
+                      key={p.party}
+                      fill={partyColor(p.party)}
+                      opacity={selected && selected !== p.party ? 0.3 : 1}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
 
           {/* States presence bar */}
-          <h3 style={{ marginTop: '1.5rem' }}>States Won In</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={top10} layout="vertical" margin={{ left: 60, right: 20 }}>
-              <XAxis type="number" />
-              <YAxis type="category" dataKey="party" width={55} tick={{ fontSize: 12 }} />
-              <Tooltip />
-              <Bar dataKey="states_won_in" name="States Won In">
-                {top10.map((p) => (
-                  <Cell
-                    key={p.party}
-                    fill={partyColor(p.party)}
-                    opacity={selected && selected !== p.party ? 0.3 : 1}
-                  />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          <h3 className="text-base font-semibold text-primary-400 mt-6 mb-3">States Won In</h3>
+          <div className="min-h-[200px] h-[40vh] max-h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={top10} layout="vertical" margin={{ left: 60, right: 20 }}>
+                <XAxis type="number" />
+                <YAxis type="category" dataKey="party" width={55} tick={{ fontSize: 12 }} />
+                <Tooltip />
+                <Bar dataKey="states_won_in" name="States Won In">
+                  {top10.map((p) => (
+                    <Cell
+                      key={p.party}
+                      fill={partyColor(p.party)}
+                      opacity={selected && selected !== p.party ? 0.3 : 1}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       )}
 
       {view === 'map' && (
-        <div className="chart-section">
-          <h3>{selected ? `${selected} — State-wise Seats` : 'Select a party to view map'}</h3>
+        <div className="mb-6">
+          <h3 className="text-base font-semibold text-primary-400 mb-3">
+            {selected ? `${selected} — State-wise Seats` : 'Select a party to view map'}
+          </h3>
           {selected && partyMapData ? (
             <>
               <IndiaMap
@@ -181,21 +193,22 @@ export default function PartyStrengthChart({
                 partyMapData={partyMapData}
                 selectedParty={selected}
               />
-              <div className="party-map-list">
+              <div className="space-y-1 mt-4">
                 {partyMapData
                   .sort((a, b) => b.seats_won - a.seats_won)
                   .map((s) => (
-                    <div key={s.state_name} className="party-map-row">
-                      <span>{s.display_name}</span>
-                      <span className="seats-bar">
+                    <div key={s.state_name} className="flex items-center gap-2 text-xs">
+                      <span className="w-24 text-neutral-300 truncate">{s.display_name}</span>
+                      <span className="flex-1 h-4 bg-neutral-800 rounded overflow-hidden">
                         <span
+                          className="block h-full rounded"
                           style={{
                             width: `${(s.seats_won / s.total_seats) * 100}%`,
                             background: partyColor(selected),
                           }}
                         />
                       </span>
-                      <span className="seats-num">
+                      <span className="w-12 text-right text-neutral-300">
                         {s.seats_won}/{s.total_seats}
                       </span>
                     </div>
@@ -203,7 +216,9 @@ export default function PartyStrengthChart({
               </div>
             </>
           ) : (
-            <p className="muted">Click a party pill above to see its state-wise presence.</p>
+            <p className="text-neutral-400 text-sm">
+              Click a party pill above to see its state-wise presence.
+            </p>
           )}
         </div>
       )}

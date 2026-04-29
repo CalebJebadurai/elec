@@ -56,3 +56,6 @@ infra/terraform/terraform.tfvars
 frontend/src/assets/react.svg
 frontend/src/assets/vite.svg
 frontend/coverage/
+
+# Audit screenshots
+frontend/audit-*.png

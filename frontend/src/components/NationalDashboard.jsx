@@ -106,30 +106,44 @@ export default function NationalDashboard({ initialTab }) {
 
   if (loading) {
     return (
-      <div className="national-dashboard">
-        <div className="loading-spinner">Loading national data…</div>
+      <div className="mb-8">
+        <div className="py-8 space-y-4">
+          <div className="animate-pulse bg-neutral-800 rounded h-6 w-48" />
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+            {Array.from({ length: 4 }, (_, i) => (
+              <div key={i} className="animate-pulse bg-neutral-800 rounded-xl h-20" />
+            ))}
+          </div>
+          <div className="animate-pulse bg-neutral-800 rounded-lg h-[40vh]" />
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="national-dashboard">
-        <div className="error-message">
-          {error} <button onClick={() => setRetryCount((c) => c + 1)}>Retry</button>
+      <div className="mb-8">
+        <div className="text-center py-8 text-error">
+          {error}{' '}
+          <button
+            className="ml-2 text-primary-400 hover:underline cursor-pointer"
+            onClick={() => setRetryCount((c) => c + 1)}
+          >
+            Retry
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="national-dashboard">
+    <div className="mb-8">
       {/* Tab nav */}
-      <div className="national-tabs">
+      <div className="flex gap-1 mb-6 border-b-2 border-neutral-800 overflow-x-auto">
         {TABS.map((t) => (
           <button
             key={t.key}
-            className={`tab-btn ${tab === t.key ? 'active' : ''}`}
+            className={`px-4 py-2 text-sm whitespace-nowrap border-b-2 -mb-[2px] transition-colors cursor-pointer min-h-[44px] md:min-h-0 ${tab === t.key ? 'border-saffron text-saffron font-semibold' : 'border-transparent text-neutral-400 hover:text-neutral-200'}`}
             onClick={() => {
               setTab(t.key);
               navigate(t.key === 'map' ? '/national' : `/national/${t.key}`);
@@ -143,17 +157,27 @@ export default function NationalDashboard({ initialTab }) {
       {tab === 'map' && (
         <>
           {/* Controls */}
-          <div className="national-controls">
-            <div className="control-group">
-              <label>Election Type</label>
-              <select value={et} onChange={(e) => setEt(e.target.value)}>
+          <div className="flex flex-col gap-3 mb-4 md:flex-row md:items-end">
+            <div>
+              <label className="block text-xs text-neutral-400 mb-1">Election Type</label>
+              <select
+                value={et}
+                onChange={(e) => setEt(e.target.value)}
+                aria-label="Election type"
+                className="bg-neutral-900 border border-neutral-800 text-neutral-200 rounded-md px-3 py-2 text-sm cursor-pointer min-h-[44px] md:min-h-0"
+              >
                 <option value="AE">Assembly (AE)</option>
                 <option value="GE">Lok Sabha (GE)</option>
               </select>
             </div>
-            <div className="control-group">
-              <label>Map Color</label>
-              <select value={colorMode} onChange={(e) => setColorMode(e.target.value)}>
+            <div>
+              <label className="block text-xs text-neutral-400 mb-1">Map Color</label>
+              <select
+                value={colorMode}
+                onChange={(e) => setColorMode(e.target.value)}
+                aria-label="Map color mode"
+                className="bg-neutral-900 border border-neutral-800 text-neutral-200 rounded-md px-3 py-2 text-sm cursor-pointer min-h-[44px] md:min-h-0"
+              >
                 {COLOR_MODES.map((m) => (
                   <option key={m.value} value={m.value}>
                     {m.label}
@@ -164,33 +188,39 @@ export default function NationalDashboard({ initialTab }) {
           </div>
 
           {/* Summary cards + Map */}
-          <div className="national-top">
-            <div className="summary-cards">
-              <div className="stat-card">
-                <div className="stat-value">{summary?.totalStates || 0}</div>
-                <div className="stat-label">States/UTs</div>
+          <div className="flex flex-col gap-4 mb-6 lg:flex-row">
+            <div className="grid grid-cols-2 gap-2 md:grid-cols-4 lg:grid-cols-2 lg:w-48">
+              <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-3 text-center">
+                <div className="text-xl font-bold text-primary-300">
+                  {summary?.totalStates || 0}
+                </div>
+                <div className="text-xs text-neutral-400">States/UTs</div>
               </div>
-              <div className="stat-card">
-                <div className="stat-value">{summary?.totalSeats?.toLocaleString() || 0}</div>
-                <div className="stat-label">Total Seats</div>
+              <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-3 text-center">
+                <div className="text-xl font-bold text-primary-300">
+                  {summary?.totalSeats?.toLocaleString() || 0}
+                </div>
+                <div className="text-xs text-neutral-400">Total Seats</div>
               </div>
-              <div className="stat-card">
+              <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-3 text-center">
                 <div
-                  className="stat-value"
+                  className="text-xl font-bold"
                   style={{
                     color: summary?.dominant ? partyColor(summary.dominant.party) : undefined,
                   }}
                 >
                   {summary?.dominant?.party || '—'}
                 </div>
-                <div className="stat-label">Dominant Party</div>
+                <div className="text-xs text-neutral-400">Dominant Party</div>
               </div>
-              <div className="stat-card">
-                <div className="stat-value">{summary?.avgTurnout || '—'}%</div>
-                <div className="stat-label">Avg Turnout</div>
+              <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-3 text-center">
+                <div className="text-xl font-bold text-primary-300">
+                  {summary?.avgTurnout || '—'}%
+                </div>
+                <div className="text-xs text-neutral-400">Avg Turnout</div>
               </div>
             </div>
-            <div className="map-section">
+            <div className="flex-1 min-w-0">
               <IndiaMap
                 stateData={stateData}
                 colorMode={colorMode}
@@ -200,10 +230,10 @@ export default function NationalDashboard({ initialTab }) {
           </div>
 
           {/* State rankings table */}
-          <div className="state-rankings">
-            <h3>State Rankings</h3>
-            <div className="table-scroll">
-              <table>
+          <div className="mb-6">
+            <h3 className="text-base font-semibold text-primary-400 mb-3">State Rankings</h3>
+            <div className="overflow-x-auto">
+              <table className="const-grid">
                 <thead>
                   <tr>
                     {[
@@ -215,7 +245,12 @@ export default function NationalDashboard({ initialTab }) {
                       ['runner_up_party', 'Runner-up'],
                       ['avg_turnout', 'Turnout'],
                     ].map(([col, label]) => (
-                      <th key={col} onClick={() => toggleSort(col)} style={{ cursor: 'pointer' }}>
+                      <th
+                        key={col}
+                        scope="col"
+                        onClick={() => toggleSort(col)}
+                        style={{ cursor: 'pointer' }}
+                      >
                         {label} {sortCol === col ? (sortDir === 'asc' ? '↑' : '↓') : ''}
                       </th>
                     ))}
@@ -226,15 +261,15 @@ export default function NationalDashboard({ initialTab }) {
                     <tr
                       key={s.state_name}
                       onClick={() => handleStateClick(s.state_name)}
-                      style={{ cursor: 'pointer' }}
+                      className="clickable-row"
                     >
                       <td>{s.display_name}</td>
                       <td>{s.latest_year}</td>
                       <td>{s.total_constituencies}</td>
                       <td>
                         <span
-                          className="party-badge"
-                          style={{ background: partyColor(s.ruling_party), color: '#fff' }}
+                          className="inline-block px-2 py-0.5 rounded text-xs text-white"
+                          style={{ background: partyColor(s.ruling_party) }}
                         >
                           {s.ruling_party}
                         </span>
@@ -251,21 +286,27 @@ export default function NationalDashboard({ initialTab }) {
 
           {/* Upcoming elections */}
           {upcoming.length > 0 && (
-            <div className="upcoming-section">
-              <h3>Upcoming Elections</h3>
-              <div className="upcoming-grid">
+            <div className="mb-6">
+              <h3 className="text-base font-semibold text-primary-400 mb-3">Upcoming Elections</h3>
+              <div className="grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-5">
                 {upcoming.slice(0, 10).map((u) => (
-                  <div
+                  <button
                     key={`${u.state_name}-${u.election_type_code}`}
-                    className="upcoming-card"
+                    className="bg-neutral-900 border border-neutral-800 rounded-xl p-3 text-center hover:border-primary-400/50 transition-colors cursor-pointer"
                     onClick={() => handleStateClick(u.state_name)}
                   >
-                    <span className="upcoming-year">{u.estimated_next_year}</span>
-                    <span className="upcoming-state">{u.display_name}</span>
-                    <span className={`et-badge ${u.election_type_code.toLowerCase()}`}>
+                    <span className="block text-lg font-bold text-saffron">
+                      {u.estimated_next_year}
+                    </span>
+                    <span className="block text-sm text-neutral-200 truncate">
+                      {u.display_name}
+                    </span>
+                    <span
+                      className={`inline-block mt-1 text-xs px-2 py-0.5 rounded ${u.election_type_code === 'AE' ? 'bg-primary-900/40 text-primary-300' : 'bg-saffron/20 text-saffron'}`}
+                    >
                       {u.election_type_code}
                     </span>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>

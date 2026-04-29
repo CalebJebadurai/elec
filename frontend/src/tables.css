@@ -1,0 +1,150 @@
+/* Minimal table styles — kept from index.css for const-grid desktop tables */
+
+.const-grid {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.const-grid th,
+.const-grid td {
+  padding: 6px 10px;
+  border-bottom: 1px solid #2a2a40;
+  text-align: left;
+}
+.const-grid th {
+  background: #1a1a2e;
+  color: #a0a0a0;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.sticky-col {
+  position: sticky;
+  left: 0;
+  background: #0f0f1a;
+  z-index: 1;
+}
+th.sticky-col {
+  z-index: 3;
+  background: #1a1a2e;
+}
+
+.const-name {
+  color: #7ae0ff;
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-color: rgba(122, 224, 255, 0.3);
+  text-underline-offset: 2px;
+}
+
+.clickable-row {
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.clickable-row:hover {
+  background: rgba(97, 218, 251, 0.06);
+}
+
+.small-text {
+  font-size: 11px;
+  color: #a0a0a0;
+}
+
+.party-cell {
+  font-size: 12px;
+  padding-left: 8px !important;
+}
+.pc-party {
+  font-weight: 600;
+  display: block;
+}
+.pc-margin {
+  color: #a0a0a0;
+  font-size: 11px;
+}
+
+.empty-cell {
+  color: #444;
+  text-align: center;
+}
+
+.party-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+/* Flip indicator */
+.flip-indicator {
+  display: inline-block;
+  background: rgba(248, 113, 113, 0.15);
+  color: #f87171;
+  font-weight: 700;
+  font-size: 14px;
+  width: 24px;
+  height: 24px;
+  line-height: 24px;
+  text-align: center;
+  border-radius: 50%;
+}
+.flip-row {
+  background: rgba(248, 113, 113, 0.03) !important;
+}
+
+/* Map tooltip */
+.map-tooltip {
+  background: rgba(20, 20, 30, 0.95);
+  color: #eee;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  border: 1px solid #555;
+  z-index: 1000;
+  max-width: 220px;
+  line-height: 1.5;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+.map-tooltip strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #fff;
+}
+
+/* IndiaMap container */
+.india-map-container {
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+}
+.map-wrapper {
+  position: relative;
+}
+
+/* Recharts overrides */
+.recharts-text {
+  fill: #a0a0a0 !important;
+  font-size: 12px;
+}
+.recharts-tooltip-cursor {
+  fill: rgba(255, 255, 255, 0.05);
+}
+.recharts-cartesian-grid line {
+  stroke: #2a2a40;
+}
+
+/* Responsive table sizing */
+@media (max-width: 768px) {
+  .const-grid {
+    font-size: 12px;
+  }
+  .const-grid th,
+  .const-grid td {
+    padding: 5px 6px;
+  }
+}

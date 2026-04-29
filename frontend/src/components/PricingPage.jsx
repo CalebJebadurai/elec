@@ -39,9 +39,9 @@ export default function PricingPage() {
   }
 
   return (
-    <div className="legal-page" style={{ maxWidth: 800 }}>
-      <h1>Pricing</h1>
-      <p style={{ color: 'var(--text-muted)', marginBottom: 32 }}>
+    <div className="max-w-3xl mx-auto px-4 py-8 text-neutral-200 text-sm leading-relaxed">
+      <h1 className="text-xl font-semibold text-white mb-2">Pricing</h1>
+      <p className="text-neutral-400 text-sm mb-8">
         Explore India&apos;s election data for free, or upgrade to Pro for advanced features.
       </p>
 
@@ -151,10 +151,9 @@ export default function PricingPage() {
             ))}
           </ul>
           <button
-            className="btn-login"
+            className="w-full bg-primary-400 text-black font-semibold py-2 px-4 rounded-md hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-50"
             onClick={handleSubscribe}
             disabled={loading}
-            style={{ width: '100%' }}
           >
             {loading ? 'Processing…' : 'Subscribe to Pro'}
           </button>
@@ -189,14 +188,7 @@ export default function PricingPage() {
           </ul>
           <a
             href="mailto:sales@elec.example.com"
-            className="btn-login"
-            style={{
-              display: 'block',
-              textAlign: 'center',
-              textDecoration: 'none',
-              width: '100%',
-              boxSizing: 'border-box',
-            }}
+            className="block w-full text-center bg-primary-400 text-black font-semibold py-2 px-4 rounded-md hover:opacity-90 transition-opacity no-underline"
           >
             Contact Sales
           </a>

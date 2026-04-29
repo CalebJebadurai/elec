@@ -1,8 +1,8 @@
 export default function SupportPage() {
   return (
-    <div className="legal-page">
-      <h1>Support</h1>
-      <p style={{ color: 'var(--text-muted)', marginBottom: 24 }}>
+    <div className="max-w-3xl mx-auto px-4 py-8 text-neutral-200 text-sm leading-relaxed">
+      <h1 className="text-xl font-semibold text-white mb-2">Support</h1>
+      <p className="text-neutral-400 text-sm mb-6">
         We are here to help. Support availability depends on your subscription tier.
       </p>
 

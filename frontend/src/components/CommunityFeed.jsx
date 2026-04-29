@@ -51,60 +51,74 @@ export default function CommunityFeed({ onLoad }) {
   }
 
   return (
-    <div className="community-feed">
-      <div className="feed-header">
-        <h3>Community Predictions</h3>
-        <div className="feed-sort">
-          <button className={sort === 'recent' ? 'active' : ''} onClick={() => setSort('recent')}>
+    <div className="mb-8">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold text-white">Community Predictions</h3>
+        <div className="flex border border-neutral-700 rounded-lg overflow-hidden">
+          <button
+            className={`px-3 py-1.5 text-sm min-h-[44px] md:min-h-0 transition-colors cursor-pointer ${sort === 'recent' ? 'bg-primary-400 text-black font-semibold' : 'bg-transparent text-neutral-400 hover:bg-neutral-800'}`}
+            onClick={() => setSort('recent')}
+          >
             Recent
           </button>
-          <button className={sort === 'popular' ? 'active' : ''} onClick={() => setSort('popular')}>
+          <button
+            className={`px-3 py-1.5 text-sm min-h-[44px] md:min-h-0 transition-colors cursor-pointer ${sort === 'popular' ? 'bg-primary-400 text-black font-semibold' : 'bg-transparent text-neutral-400 hover:bg-neutral-800'}`}
+            onClick={() => setSort('popular')}
+          >
             Popular
           </button>
         </div>
       </div>
 
-      {loading && <div className="loading">Loading community predictions...</div>}
+      {loading && (
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="animate-pulse bg-neutral-800 rounded-2xl h-32" />
+          ))}
+        </div>
+      )}
 
       {!loading && predictions.length === 0 && (
-        <p className="feed-empty">
+        <p className="text-center text-neutral-400 py-12">
           No public predictions yet. Be the first to publish your analysis!
         </p>
       )}
 
-      <div className="feed-list">
+      <div className="space-y-3">
         {predictions.map((p) => (
-          <div key={p.id} className="feed-card">
-            <div className="feed-card-header">
-              <div className="feed-author">
+          <div
+            key={p.id}
+            className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4 shadow-md"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
                 {p.author_avatar ? (
-                  <img src={p.author_avatar} alt="" className="feed-avatar" />
+                  <img src={p.author_avatar} alt="" className="w-7 h-7 rounded-full" />
                 ) : (
-                  <span className="feed-avatar-placeholder">
+                  <span className="w-7 h-7 rounded-full bg-primary-900 text-primary-300 flex items-center justify-center text-xs font-semibold">
                     {(p.author_name || 'A')[0].toUpperCase()}
                   </span>
                 )}
-                <span className="feed-author-name">{p.author_name}</span>
+                <span className="text-sm text-neutral-200">{p.author_name}</span>
               </div>
-              <span className="feed-date">{new Date(p.created_at).toLocaleDateString()}</span>
+              <span className="text-xs text-neutral-500">
+                {new Date(p.created_at).toLocaleDateString()}
+              </span>
             </div>
 
-            <h4 className="feed-title">{p.title}</h4>
+            <h4 className="text-sm font-semibold text-white mb-1">{p.title}</h4>
             {p.params?.state_name && (
-              <span
-                className="badge badge-state"
-                style={{ marginBottom: '0.25rem', display: 'inline-block' }}
-              >
+              <span className="inline-block bg-primary-900/40 text-primary-300 text-xs px-2 py-0.5 rounded-full mb-1">
                 {p.params.state_name.replace(/_/g, ' ')}
               </span>
             )}
-            {p.description && <p className="feed-desc">{p.description}</p>}
-            <p className="feed-params">{getParamsSummary(p.params)}</p>
+            {p.description && <p className="text-xs text-neutral-400 mb-1">{p.description}</p>}
+            <p className="text-xs text-neutral-500 font-mono">{getParamsSummary(p.params)}</p>
 
-            <div className="feed-footer">
-              <div className="feed-votes">
+            <div className="flex items-center justify-between mt-3 pt-2 border-t border-neutral-800">
+              <div className="flex gap-2">
                 <button
-                  className={`vote-btn ${p.my_vote === 'like' ? 'voted' : ''}`}
+                  className={`flex items-center gap-1 min-w-[44px] min-h-[44px] justify-center rounded-lg text-sm transition-colors cursor-pointer ${p.my_vote === 'like' ? 'bg-success/20 text-success' : 'text-neutral-400 hover:bg-neutral-800'}`}
                   onClick={() => handleVote(p.id, 'like')}
                   disabled={!user}
                   title={user ? 'Like this prediction' : 'Sign in to vote'}
@@ -112,7 +126,7 @@ export default function CommunityFeed({ onLoad }) {
                   👍 {p.like_count}
                 </button>
                 <button
-                  className={`vote-btn ${p.my_vote === 'dislike' ? 'voted' : ''}`}
+                  className={`flex items-center gap-1 min-w-[44px] min-h-[44px] justify-center rounded-lg text-sm transition-colors cursor-pointer ${p.my_vote === 'dislike' ? 'bg-error/20 text-error' : 'text-neutral-400 hover:bg-neutral-800'}`}
                   onClick={() => handleVote(p.id, 'dislike')}
                   disabled={!user}
                   title={user ? 'Dislike this prediction' : 'Sign in to vote'}
@@ -120,7 +134,10 @@ export default function CommunityFeed({ onLoad }) {
                   👎 {p.dislike_count}
                 </button>
               </div>
-              <button className="btn-sm btn-primary" onClick={() => onLoad(p.params)}>
+              <button
+                className="bg-primary-400 text-black text-xs font-semibold px-3 py-1.5 rounded-md min-h-[44px] md:min-h-0 hover:opacity-90 transition-opacity cursor-pointer"
+                onClick={() => onLoad(p.params)}
+              >
                 Load This Prediction
               </button>
             </div>

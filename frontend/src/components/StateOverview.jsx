@@ -32,7 +32,14 @@ export default function StateOverview() {
       .catch(() => setLoading(false));
   }, [selectedState, electionType]);
 
-  if (loading) return <div className="loading">Loading state overview…</div>;
+  if (loading)
+    return (
+      <div className="py-8 space-y-4">
+        <div className="animate-pulse bg-neutral-800 rounded h-6 w-48" />
+        <div className="animate-pulse bg-neutral-800 rounded-lg h-[40vh]" />
+        <div className="animate-pulse bg-neutral-800 rounded-lg h-[40vh]" />
+      </div>
+    );
 
   // Derive election years from data
   const years = [...new Set(data.map((d) => d.year))].sort((a, b) => a - b);
@@ -90,56 +97,68 @@ export default function StateOverview() {
   });
 
   return (
-    <div className="panel">
-      <h2>Seats Won by Party (General Elections)</h2>
-      <ResponsiveContainer width="100%" height={400}>
-        <BarChart data={seatData}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-          <XAxis dataKey="year" stroke="#ccc" />
-          <YAxis stroke="#ccc" />
-          <Tooltip contentStyle={{ background: '#1e1e2e', border: '1px solid #444' }} />
-          <Legend />
-          {topParties.map((p) => (
-            <Bar key={p} dataKey={p} stackId="seats" fill={partyColor(p)} />
-          ))}
-        </BarChart>
-      </ResponsiveContainer>
+    <div className="mb-8">
+      <h2 className="text-lg font-semibold text-white mt-6 mb-3 border-b border-neutral-800 pb-2">
+        Seats Won by Party (General Elections)
+      </h2>
+      <div className="min-h-[200px] h-[40vh] max-h-[400px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={seatData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+            <XAxis dataKey="year" stroke="#ccc" tick={{ fontSize: 12 }} />
+            <YAxis stroke="#ccc" tick={{ fontSize: 12 }} />
+            <Tooltip contentStyle={{ background: '#1e1e2e', border: '1px solid #444' }} />
+            <Legend verticalAlign="bottom" />
+            {topParties.map((p) => (
+              <Bar key={p} dataKey={p} stackId="seats" fill={partyColor(p)} />
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
 
-      <h2>{top2.join(' vs ')} — Average Vote Share Trend</h2>
-      <ResponsiveContainer width="100%" height={350}>
-        <LineChart data={voteShareData}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-          <XAxis dataKey="year" stroke="#ccc" />
-          <YAxis domain={[0, 'auto']} stroke="#ccc" unit="%" />
-          <Tooltip contentStyle={{ background: '#1e1e2e', border: '1px solid #444' }} />
-          <Legend />
-          {top2.map((p) => (
-            <Line
-              key={p}
-              type="monotone"
-              dataKey={p}
-              stroke={partyColor(p)}
-              strokeWidth={3}
-              dot={{ r: 5 }}
-              connectNulls
-            />
-          ))}
-        </LineChart>
-      </ResponsiveContainer>
+      <h2 className="text-lg font-semibold text-white mt-6 mb-3 border-b border-neutral-800 pb-2">
+        {top2.join(' vs ')} — Average Vote Share Trend
+      </h2>
+      <div className="min-h-[200px] h-[40vh] max-h-[350px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={voteShareData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+            <XAxis dataKey="year" stroke="#ccc" tick={{ fontSize: 12 }} />
+            <YAxis domain={[0, 'auto']} stroke="#ccc" unit="%" tick={{ fontSize: 12 }} />
+            <Tooltip contentStyle={{ background: '#1e1e2e', border: '1px solid #444' }} />
+            <Legend verticalAlign="bottom" />
+            {top2.map((p) => (
+              <Line
+                key={p}
+                type="monotone"
+                dataKey={p}
+                stroke={partyColor(p)}
+                strokeWidth={3}
+                dot={{ r: 5 }}
+                connectNulls
+              />
+            ))}
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
 
-      <h2>Vote Share Swing from Previous Election</h2>
-      <ResponsiveContainer width="100%" height={350}>
-        <BarChart data={swingByYear}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-          <XAxis dataKey="year" stroke="#ccc" />
-          <YAxis stroke="#ccc" unit="%" />
-          <Tooltip contentStyle={{ background: '#1e1e2e', border: '1px solid #444' }} />
-          <Legend />
-          {swingParties.map((p) => (
-            <Bar key={p} dataKey={p} fill={partyColor(p)} />
-          ))}
-        </BarChart>
-      </ResponsiveContainer>
+      <h2 className="text-lg font-semibold text-white mt-6 mb-3 border-b border-neutral-800 pb-2">
+        Vote Share Swing from Previous Election
+      </h2>
+      <div className="min-h-[200px] h-[40vh] max-h-[350px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={swingByYear}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+            <XAxis dataKey="year" stroke="#ccc" tick={{ fontSize: 12 }} />
+            <YAxis stroke="#ccc" unit="%" tick={{ fontSize: 12 }} />
+            <Tooltip contentStyle={{ background: '#1e1e2e', border: '1px solid #444' }} />
+            <Legend verticalAlign="bottom" />
+            {swingParties.map((p) => (
+              <Bar key={p} dataKey={p} fill={partyColor(p)} />
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 }
