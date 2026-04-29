@@ -1,18 +1,40 @@
+import asyncio
+import ipaddress
 import os
 import time
 import logging
 from collections import defaultdict
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, Response
+import sentry_sdk
+
+from fastapi import FastAPI, Request, Response, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, ORJSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.gzip import GZipMiddleware
 
 from database import close_pool, get_pool
 from routes import router
 from auth_routes import auth_router
 from bookmark_routes import bookmark_router
+from national_routes import router as national_router
+from og_routes import og_router
+from payment_routes import payment_router, webhook_router
+from admin_routes import admin_router
+from export_routes import export_router
+from apikey_routes import apikey_router
+
+# ---------------------------------------------------------------------------
+# Sentry error tracking (no-op if DSN not set)
+# ---------------------------------------------------------------------------
+_sentry_dsn = os.environ.get("SENTRY_DSN", "")
+if _sentry_dsn:
+    sentry_sdk.init(
+        dsn=_sentry_dsn,
+        traces_sample_rate=0.1,
+        send_default_pii=False,
+    )
 
 # ---------------------------------------------------------------------------
 # Security logging
@@ -37,6 +59,27 @@ RATE_LIMIT_WINDOW = int(os.environ.get("RATE_LIMIT_WINDOW", "60"))  # seconds
 _rate_store: dict[str, list[float]] = defaultdict(list)
 _rate_store_max_keys = 10_000  # Evict oldest entries if exceeded
 
+
+async def _redis_rate_check(key: str, limit: int, window: int) -> tuple[bool, int]:
+    """Check rate limit using Redis sorted sets. Returns (allowed, current_count).
+    Falls back to (True, 0) if Redis unavailable."""
+    try:
+        from cache import _get_redis
+        r = await _get_redis()
+        if not r:
+            return True, 0  # fall through to in-memory
+        now = time.time()
+        pipe = r.pipeline()
+        pipe.zremrangebyscore(key, 0, now - window)
+        pipe.zadd(key, {str(now): now})
+        pipe.zcard(key)
+        pipe.expire(key, window)
+        results = await pipe.execute()
+        count = results[2]
+        return count <= limit, count
+    except Exception:
+        return True, 0  # fall through to in-memory
+
 # Paths exempt from rate limiting
 _RATE_EXEMPT = {"/health", "/docs", "/openapi.json", "/redoc"}
 
@@ -44,6 +87,55 @@ _RATE_EXEMPT = {"/health", "/docs", "/openapi.json", "/redoc"}
 _AUTH_RATE_LIMIT = 10  # max 10 auth requests per window
 _AUTH_PATHS = {"/auth/verify-otp", "/auth/google-link"}
 _auth_rate_store: dict[str, list[float]] = defaultdict(list)
+
+# Trusted proxy CIDR ranges for X-Forwarded-For parsing
+
+_TRUSTED_PROXIES: list[ipaddress.IPv4Network | ipaddress.IPv6Network] = []
+_trusted_proxies_raw = os.environ.get("TRUSTED_PROXIES", "")
+if _trusted_proxies_raw:
+    for cidr in _trusted_proxies_raw.split(","):
+        cidr = cidr.strip()
+        if cidr:
+            try:
+                _TRUSTED_PROXIES.append(ipaddress.ip_network(cidr, strict=False))
+            except ValueError:
+                logger.warning("Invalid CIDR in TRUSTED_PROXIES: %s", cidr)
+elif not _trusted_proxies_raw:
+    logger.info("TRUSTED_PROXIES not configured; rate limiter uses direct client IP")
+
+
+def _get_client_ip(request: Request) -> str:
+    """Extract the real client IP, handling reverse proxies."""
+    direct_ip = request.client.host if request.client else "unknown"
+    if direct_ip == "unknown":
+        return direct_ip
+
+    # Only trust proxy headers if the connecting IP is a known proxy
+    is_trusted = False
+    if _TRUSTED_PROXIES:
+        try:
+            addr = ipaddress.ip_address(direct_ip)
+            is_trusted = any(addr in net for net in _TRUSTED_PROXIES)
+        except ValueError:
+            pass
+
+    if not is_trusted and _TRUSTED_PROXIES:
+        return direct_ip
+
+    # Check X-Real-IP first (simpler, set by most proxies)
+    real_ip = request.headers.get("x-real-ip")
+    if real_ip:
+        return real_ip.strip()
+
+    # Parse X-Forwarded-For — take the leftmost (client) IP
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        # First IP in the chain is the original client
+        client_ip = forwarded.split(",")[0].strip()
+        if client_ip:
+            return client_ip
+
+    return direct_ip
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
@@ -63,11 +155,24 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                     content={"detail": "Request body too large"},
                 )
 
-        client_ip = request.client.host if request.client else "unknown"
+        client_ip = _get_client_ip(request)
 
         now = time.time()
         window_start = now - RATE_LIMIT_WINDOW
 
+        # Try Redis rate limiting first
+        redis_allowed, redis_count = await _redis_rate_check(
+            f"rate:{client_ip}", RATE_LIMIT_REQUESTS, RATE_LIMIT_WINDOW
+        )
+        if not redis_allowed:
+            logger.warning("Rate limit exceeded (Redis): ip=%s path=%s", client_ip, path)
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "Too many requests. Please slow down."},
+                headers={"Retry-After": str(RATE_LIMIT_WINDOW)},
+            )
+
+        # In-memory fallback (used when Redis unavailable)
         # Clean old entries and append current
         hits = _rate_store[client_ip]
         _rate_store[client_ip] = [t for t in hits if t > window_start]
@@ -106,6 +211,30 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         response.headers["X-RateLimit-Remaining"] = str(
             max(0, RATE_LIMIT_REQUESTS - len(_rate_store[client_ip]))
         )
+
+        # Record usage asynchronously (fire-and-forget)
+        elapsed_ms = int((time.time() - now) * 1000)
+        user_id = None
+        api_key_id = None
+        if hasattr(request.state, "user"):
+            u = request.state.user
+            if u:
+                user_id = int(u.get("sub", 0)) or None
+                api_key_id = u.get("api_key_id")
+        asyncio.create_task(_record_usage(user_id, api_key_id, path, elapsed_ms))
+
+        return response
+
+
+import uuid as _uuid
+
+
+class RequestIDMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        request_id = request.headers.get("X-Request-ID") or str(_uuid.uuid4())
+        request.state.request_id = request_id
+        response: Response = await call_next(request)
+        response.headers["X-Request-ID"] = request_id
         return response
 
 
@@ -131,6 +260,109 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
+# Paths exempt from CSRF verification (safe methods are also exempt)
+_CSRF_EXEMPT = {"/health", "/docs", "/openapi.json", "/redoc",
+                 "/auth/verify-otp", "/auth/logout",
+                 "/v1/auth/verify-otp", "/v1/auth/logout"}
+_CSRF_EXEMPT_PREFIXES = ("/webhooks/", "/v1/webhooks/")
+
+
+class CSRFMiddleware(BaseHTTPMiddleware):
+    """Double-submit cookie CSRF protection.
+
+    For state-changing requests (POST, PUT, DELETE), verify that the
+    X-CSRF-Token header matches the csrf_token cookie value.
+    Exempt: safe methods, login/webhook endpoints, Bearer-token-authenticated requests.
+    """
+    async def dispatch(self, request: Request, call_next):
+        if request.method in ("GET", "HEAD", "OPTIONS"):
+            return await call_next(request)
+
+        path = request.url.path
+        if path in _CSRF_EXEMPT or any(path.startswith(p) for p in _CSRF_EXEMPT_PREFIXES):
+            return await call_next(request)
+
+        # Skip CSRF check for Bearer-token-authenticated requests (API keys, etc.)
+        auth_header = request.headers.get("authorization", "")
+        if auth_header.startswith("Bearer "):
+            return await call_next(request)
+
+        # Verify CSRF double-submit cookie
+        csrf_cookie = request.cookies.get("csrf_token")
+        csrf_header = request.headers.get("x-csrf-token")
+        if not csrf_cookie or not csrf_header or csrf_cookie != csrf_header:
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "CSRF validation failed"},
+            )
+
+        return await call_next(request)
+
+
+# ---------------------------------------------------------------------------
+# Usage metering — in-memory counters flushed to DB periodically
+# ---------------------------------------------------------------------------
+USAGE_FLUSH_INTERVAL = int(os.environ.get("USAGE_FLUSH_INTERVAL", "300"))  # seconds
+FREE_TIER_MONTHLY_LIMIT = int(os.environ.get("FREE_TIER_MONTHLY_LIMIT", "1000"))
+PRO_TIER_MONTHLY_LIMIT = int(os.environ.get("PRO_TIER_MONTHLY_LIMIT", "10000"))
+
+# key: (user_id_or_ip, api_key_id_or_none, date_str, endpoint_group)
+_usage_counters: dict[tuple, dict] = {}
+_usage_lock = asyncio.Lock()
+
+
+def _endpoint_group(path: str) -> str:
+    """Classify an endpoint into a metering group."""
+    if path.startswith(("/v1/export", "/export")):
+        return "export"
+    if path.startswith(("/v1/national", "/national")):
+        return "national"
+    if path.startswith(("/v1/predict", "/predict")):
+        return "predictions"
+    if path.startswith(("/v1/auth", "/auth")):
+        return "auth"
+    return "data"
+
+
+async def _record_usage(user_id: int | None, api_key_id: int | None, path: str, response_time_ms: int):
+    from datetime import date
+    key = (user_id, api_key_id, str(date.today()), _endpoint_group(path))
+    async with _usage_lock:
+        if key not in _usage_counters:
+            _usage_counters[key] = {"count": 0, "time_ms": 0}
+        _usage_counters[key]["count"] += 1
+        _usage_counters[key]["time_ms"] += response_time_ms
+
+
+async def _flush_usage():
+    """Flush accumulated usage counters to the database."""
+    async with _usage_lock:
+        if not _usage_counters:
+            return
+        snapshot = dict(_usage_counters)
+        _usage_counters.clear()
+
+    try:
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            for (uid, akid, date_str, group), vals in snapshot.items():
+                await conn.execute(
+                    """INSERT INTO usage_summary (user_id, api_key_id, date, endpoint_group, request_count, total_response_time_ms)
+                       VALUES ($1, $2, $3::date, $4, $5, $6)
+                       ON CONFLICT DO NOTHING""",
+                    uid, akid, date_str, group, vals["count"], vals["time_ms"],
+                )
+    except Exception:
+        # On flush failure, data is lost — acceptable for metering
+        logging.getLogger("usage").warning("Failed to flush usage counters")
+
+
+async def _usage_flush_loop():
+    while True:
+        await asyncio.sleep(USAGE_FLUSH_INTERVAL)
+        await _flush_usage()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     pool = await get_pool()
@@ -150,7 +382,7 @@ async def lifespan(app: FastAPI):
                 candidate TEXT NOT NULL,
                 sex TEXT,
                 party TEXT,
-                votes INTEGER NOT NULL,
+                votes INTEGER,
                 age INTEGER,
                 candidate_type TEXT,
                 valid_votes INTEGER,
@@ -229,6 +461,16 @@ async def lifespan(app: FastAPI):
             "CREATE INDEX IF NOT EXISTS idx_tcpd_position ON tcpd_ae(position)",
             "CREATE INDEX IF NOT EXISTS idx_tcpd_year_position ON tcpd_ae(year, position)",
             "CREATE INDEX IF NOT EXISTS idx_tcpd_year_constituency ON tcpd_ae(year, constituency_no)",
+            # Multi-state composite indexes
+            "CREATE INDEX IF NOT EXISTS idx_tcpd_state_year ON tcpd_ae(state_name, year)",
+            "CREATE INDEX IF NOT EXISTS idx_tcpd_state_const_year ON tcpd_ae(state_name, constituency_name, year)",
+            "CREATE INDEX IF NOT EXISTS idx_tcpd_state_year_pos ON tcpd_ae(state_name, year, position)",
+            "CREATE INDEX IF NOT EXISTS idx_tcpd_election_type ON tcpd_ae(election_type)",
+            "CREATE INDEX IF NOT EXISTS idx_tcpd_state_election_type ON tcpd_ae(state_name, election_type)",
+            "CREATE INDEX IF NOT EXISTS idx_tcpd_state_poll ON tcpd_ae(state_name, poll_no)",
+            # National query composite indexes
+            "CREATE INDEX IF NOT EXISTS idx_tcpd_state_pos_et ON tcpd_ae(state_name, position, election_type)",
+            "CREATE INDEX IF NOT EXISTS idx_tcpd_party_state_year ON tcpd_ae(party, state_name, year)",
             "CREATE INDEX IF NOT EXISTS idx_users_mobile ON users(mobile)",
             "CREATE INDEX IF NOT EXISTS idx_users_google ON users(google_id)",
             "CREATE INDEX IF NOT EXISTS idx_bookmarks_user ON bookmarks(user_id)",
@@ -236,7 +478,37 @@ async def lifespan(app: FastAPI):
             "CREATE INDEX IF NOT EXISTS idx_votes_bookmark ON votes(bookmark_id)",
         ]:
             await conn.execute(stmt)
+
+    # Warm national caches in background (non-blocking)
+    async def _warm():
+        try:
+            from national_routes import warm_cache
+            await warm_cache()
+        except Exception:
+            pass
+    asyncio.create_task(_warm())
+
+    # Start usage metering flush loop
+    flush_task = asyncio.create_task(_usage_flush_loop())
+
+    # Hourly materialized view refresh loop
+    async def _mv_refresh_loop():
+        while True:
+            await asyncio.sleep(3600)
+            try:
+                from national_routes import refresh_materialized_views
+                await refresh_materialized_views()
+            except Exception:
+                pass
+
+    mv_task = asyncio.create_task(_mv_refresh_loop())
+
     yield
+
+    # Shutdown: flush remaining usage data and close pool
+    flush_task.cancel()
+    mv_task.cancel()
+    await _flush_usage()
     await close_pool()
 
 
@@ -254,13 +526,17 @@ app = FastAPI(
     ),
     version="2.0.0",
     lifespan=lifespan,
+    default_response_class=ORJSONResponse,
     docs_url=None if _disable_docs else "/docs",
     redoc_url=None if _disable_docs else "/redoc",
     openapi_url=None if _disable_docs else "/openapi.json",
 )
 
+app.add_middleware(RequestIDMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(CSRFMiddleware)
 app.add_middleware(RateLimitMiddleware)
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 app.add_middleware(
     CORSMiddleware,
@@ -270,9 +546,27 @@ app.add_middleware(
     allow_credentials=True,
 )
 
+# ── Versioned API routes (/v1/) ─────────────────────────────
+v1 = APIRouter(prefix="/v1")
+v1.include_router(router)
+v1.include_router(auth_router, prefix="/auth", tags=["auth"])
+v1.include_router(bookmark_router, prefix="/bookmarks", tags=["bookmarks"])
+v1.include_router(national_router)
+v1.include_router(payment_router)
+v1.include_router(webhook_router)
+v1.include_router(admin_router)
+v1.include_router(export_router)
+v1.include_router(apikey_router)
+app.include_router(v1)
+
+# Legacy unprefixed routes (deprecation period)
 app.include_router(router)
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
 app.include_router(bookmark_router, prefix="/bookmarks", tags=["bookmarks"])
+app.include_router(national_router)
+
+# Non-versioned routes
+app.include_router(og_router)
 
 
 @app.get("/health", tags=["infra"])
@@ -309,9 +603,6 @@ async def seed_data(request: Request):
     _verify_admin(request)
 
     pool = await get_pool()
-    count = await pool.fetchval("SELECT COUNT(*) FROM tcpd_ae")
-    if count > 0:
-        return {"detail": f"Table already has {count} rows. Truncate first.", "rows": count}
 
     body = await request.body()
     text = body.decode("utf-8")
@@ -332,39 +623,53 @@ async def seed_data(request: Request):
     ]
 
     # Use asyncpg copy_to_table for fast bulk insert — send as tab-delimited text
-    # which PostgreSQL COPY protocol auto-casts to column types
+    # Process in batches to limit memory usage for large CSVs (483K rows)
     import io as _io
-    tsv_buf = _io.BytesIO()
+    BATCH_SIZE = 50_000
     row_count = 0
-    for row in reader:
-        # Map CSV headers (any case) to lowercase column names
-        lc_row = {k.lower(): v for k, v in row.items()}
-        vals = []
-        for col in columns:
-            v = lc_row.get(col, "")
-            vals.append(v if v != "" else "\\N")
-        tsv_buf.write(("\t".join(vals) + "\n").encode("utf-8"))
-        row_count += 1
-    tsv_buf.seek(0)
+    batch_buf = _io.BytesIO()
+    batch_count = 0
 
     try:
         async with pool.acquire() as conn:
             # Drop unique index if exists so COPY doesn't fail on CSV duplicates
             await conn.execute("DROP INDEX IF EXISTS idx_tcpd_unique_entry")
-            await conn.copy_to_table(
-                "tcpd_ae",
-                columns=columns,
-                source=tsv_buf,
-                format="text",
-                schema_name="public",
-            )
+
+            for row in reader:
+                lc_row = {k.lower(): v for k, v in row.items()}
+                vals = []
+                for col in columns:
+                    v = lc_row.get(col, "")
+                    vals.append(v if v != "" else "\\N")
+                batch_buf.write(("\t".join(vals) + "\n").encode("utf-8"))
+                row_count += 1
+                batch_count += 1
+
+                if batch_count >= BATCH_SIZE:
+                    batch_buf.seek(0)
+                    await conn.copy_to_table(
+                        "tcpd_ae", columns=columns,
+                        source=batch_buf, format="text", schema_name="public",
+                    )
+                    batch_buf = _io.BytesIO()
+                    batch_count = 0
+
+            # Flush remaining rows
+            if batch_count > 0:
+                batch_buf.seek(0)
+                await conn.copy_to_table(
+                    "tcpd_ae", columns=columns,
+                    source=batch_buf, format="text", schema_name="public",
+                )
     except Exception as e:
+        logger.error("Seed failed: %s", e)
         return JSONResponse(status_code=500, content={"detail": "Seed failed. Check server logs."})
 
-    # Deduplicate
+    # Deduplicate (state-scoped)
     await pool.execute("""
         DELETE FROM tcpd_ae a USING tcpd_ae b
         WHERE a.id > b.id
+          AND a.state_name = b.state_name
           AND a.year = b.year
           AND a.constituency_no = b.constituency_no
           AND a.candidate = b.candidate
@@ -372,7 +677,7 @@ async def seed_data(request: Request):
     """)
     await pool.execute("""
         CREATE UNIQUE INDEX IF NOT EXISTS idx_tcpd_unique_entry
-          ON tcpd_ae (year, constituency_no, candidate, COALESCE(poll_no, 0))
+          ON tcpd_ae (state_name, year, constituency_no, candidate, COALESCE(poll_no, 0), COALESCE(election_type, ''))
     """)
     final_count = await pool.fetchval("SELECT COUNT(*) FROM tcpd_ae")
 
@@ -389,6 +694,7 @@ async def dedup_data(request: Request):
     await pool.execute("""
         DELETE FROM tcpd_ae a USING tcpd_ae b
         WHERE a.id > b.id
+          AND a.state_name = b.state_name
           AND a.year = b.year
           AND a.constituency_no = b.constituency_no
           AND a.candidate = b.candidate
@@ -396,7 +702,7 @@ async def dedup_data(request: Request):
     """)
     await pool.execute("""
         CREATE UNIQUE INDEX IF NOT EXISTS idx_tcpd_unique_entry
-          ON tcpd_ae (year, constituency_no, candidate, COALESCE(poll_no, 0))
+          ON tcpd_ae (state_name, year, constituency_no, candidate, COALESCE(poll_no, 0), COALESCE(election_type, ''))
     """)
     after = await pool.fetchval("SELECT COUNT(*) FROM tcpd_ae")
     return {"before": before, "after": after, "removed": before - after}
