@@ -1,21 +1,32 @@
 import { useState, useEffect, useMemo } from 'react';
 import { api } from '../api';
 import { normalizeParty, partyColor } from '../constants';
+import { useStateSelection } from '../contexts/StateContext';
+import { useDebounce } from '../hooks/useDebounce';
 
 export default function ConstituencyList({ onSelect }) {
+  const { selectedState, electionType } = useStateSelection();
   const [allData, setAllData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search);
   const [filterDistrict, setFilterDistrict] = useState('');
   const [filterRegion, setFilterRegion] = useState('');
   const [sortBy, setSortBy] = useState('name');
 
   useEffect(() => {
-    api.allConstituencySwings().then((rows) => {
-      setAllData(rows);
-      setLoading(false);
-    }).catch(() => setLoading(false));
-  }, []);
+    setLoading(true);
+    setSearch('');
+    setFilterDistrict('');
+    setFilterRegion('');
+    api
+      .allConstituencySwings(selectedState, electionType)
+      .then((rows) => {
+        setAllData(rows);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [selectedState, electionType]);
 
   // Group by constituency
   const constituencies = useMemo(() => {
@@ -46,12 +57,21 @@ export default function ConstituencyList({ onSelect }) {
   }, [allData]);
 
   // Derive election years from data
-  const dataYears = useMemo(() => [...new Set(allData.map((r) => r.year))].sort((a, b) => a - b), [allData]);
+  const dataYears = useMemo(
+    () => [...new Set(allData.map((r) => r.year))].sort((a, b) => a - b),
+    [allData]
+  );
   const latestYear = dataYears.length > 0 ? dataYears[dataYears.length - 1] : null;
 
   // Unique districts and regions for filters
-  const districts = useMemo(() => [...new Set(constituencies.map((c) => c.district).filter(Boolean))].sort(), [constituencies]);
-  const regions = useMemo(() => [...new Set(constituencies.map((c) => c.region).filter(Boolean))].sort(), [constituencies]);
+  const districts = useMemo(
+    () => [...new Set(constituencies.map((c) => c.district).filter(Boolean))].sort(),
+    [constituencies]
+  );
+  const regions = useMemo(
+    () => [...new Set(constituencies.map((c) => c.region).filter(Boolean))].sort(),
+    [constituencies]
+  );
 
   // Count swings per constituency (party change between consecutive elections)
   function countSwings(c) {
@@ -65,9 +85,11 @@ export default function ConstituencyList({ onSelect }) {
 
   const filtered = useMemo(() => {
     let list = constituencies;
-    if (search) {
-      const q = search.toLowerCase();
-      list = list.filter((c) => c.name.toLowerCase().includes(q) || (c.district || '').toLowerCase().includes(q));
+    if (debouncedSearch) {
+      const q = debouncedSearch.toLowerCase();
+      list = list.filter(
+        (c) => c.name.toLowerCase().includes(q) || (c.district || '').toLowerCase().includes(q)
+      );
     }
     if (filterDistrict) list = list.filter((c) => c.district === filterDistrict);
     if (filterRegion) list = list.filter((c) => c.region === filterRegion);
@@ -84,7 +106,7 @@ export default function ConstituencyList({ onSelect }) {
       list = [...list].sort((a, b) => a.name.localeCompare(b.name));
     }
     return list;
-  }, [constituencies, search, filterDistrict, filterRegion, sortBy]);
+  }, [constituencies, debouncedSearch, filterDistrict, filterRegion, sortBy]);
 
   if (loading) return <div className="loading">Loading constituency data…</div>;
 
@@ -103,11 +125,19 @@ export default function ConstituencyList({ onSelect }) {
         />
         <select value={filterRegion} onChange={(e) => setFilterRegion(e.target.value)}>
           <option value="">All Regions</option>
-          {regions.map((r) => <option key={r} value={r}>{r}</option>)}
+          {regions.map((r) => (
+            <option key={r} value={r}>
+              {r}
+            </option>
+          ))}
         </select>
         <select value={filterDistrict} onChange={(e) => setFilterDistrict(e.target.value)}>
           <option value="">All Districts</option>
-          {districts.map((d) => <option key={d} value={d}>{d}</option>)}
+          {districts.map((d) => (
+            <option key={d} value={d}>
+              {d}
+            </option>
+          ))}
         </select>
         <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
           <option value="name">Sort: Name</option>
@@ -125,7 +155,9 @@ export default function ConstituencyList({ onSelect }) {
               <th className="sticky-col">Constituency</th>
               <th>District</th>
               <th>Swings</th>
-              {activeYears.map((y) => <th key={y}>{y}</th>)}
+              {activeYears.map((y) => (
+                <th key={y}>{y}</th>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -135,14 +167,29 @@ export default function ConstituencyList({ onSelect }) {
                 <tr key={c.name} onClick={() => onSelect(c.name)} className="clickable-row">
                   <td className="sticky-col const-name">{c.name}</td>
                   <td className="small-text">{c.district || '—'}</td>
-                  <td><span className={`swing-count ${sw >= 5 ? 'high' : sw >= 3 ? 'med' : 'low'}`}>{sw}</span></td>
+                  <td>
+                    <span className={`swing-count ${sw >= 5 ? 'high' : sw >= 3 ? 'med' : 'low'}`}>
+                      {sw}
+                    </span>
+                  </td>
                   {activeYears.map((y) => {
                     const d = c.years[y];
-                    if (!d) return <td key={y} className="empty-cell">—</td>;
+                    if (!d)
+                      return (
+                        <td key={y} className="empty-cell">
+                          —
+                        </td>
+                      );
                     return (
-                      <td key={y} className="party-cell" style={{ borderLeft: `4px solid ${partyColor(d.winner_party)}` }}>
+                      <td
+                        key={y}
+                        className="party-cell"
+                        style={{ borderLeft: `4px solid ${partyColor(d.winner_party)}` }}
+                      >
                         <span className="pc-party">{d.winner_party}</span>
-                        <span className="pc-margin">{d.margin != null ? `${d.margin.toFixed(1)}%` : ''}</span>
+                        <span className="pc-margin">
+                          {d.margin != null ? `${d.margin.toFixed(1)}%` : ''}
+                        </span>
                       </td>
                     );
                   })}

@@ -1,12 +1,12 @@
 import { useState, useCallback } from 'react';
-import {
-  AFFINITY_PRESETS,
-  DEFAULT_PREDICTION_PARAMS,
-} from '../constants';
+import { AFFINITY_PRESETS, DEFAULT_PREDICTION_PARAMS } from '../constants';
 
 export default function PredictionPanel({ params, onChange, presets, topParties }) {
   const activePresets = presets || AFFINITY_PRESETS;
-  const majorParties = topParties && topParties.length > 0 ? topParties : Object.keys(params.affinityWeights).filter((k) => k !== 'Others');
+  const majorParties =
+    topParties && topParties.length > 0
+      ? topParties
+      : Object.keys(params.affinityWeights).filter((k) => k !== 'Others');
   const [showAffinity, setShowAffinity] = useState(false);
   const [showOverrides, setShowOverrides] = useState(false);
   const [overrideSearch, setOverrideSearch] = useState('');
@@ -66,12 +66,11 @@ export default function PredictionPanel({ params, onChange, presets, topParties 
           className="pred-slider"
         />
         <div className="pred-range-labels">
-          <span>0%</span><span>100%</span>
+          <span>0%</span>
+          <span>100%</span>
         </div>
 
-        <label className="pred-label">
-          Total Voters (Electors)
-        </label>
+        <label className="pred-label">Total Voters (Electors)</label>
         <input
           type="number"
           placeholder="Leave blank for default"
@@ -95,7 +94,8 @@ export default function PredictionPanel({ params, onChange, presets, topParties 
           className="pred-slider"
         />
         <div className="pred-range-labels">
-          <span>0%</span><span>100%</span>
+          <span>0%</span>
+          <span>100%</span>
         </div>
       </div>
 
@@ -114,10 +114,7 @@ export default function PredictionPanel({ params, onChange, presets, topParties 
 
         <label className="pred-label">
           Party Color
-          <span
-            className="color-preview"
-            style={{ background: params.newPartyColor }}
-          />
+          <span className="color-preview" style={{ background: params.newPartyColor }} />
         </label>
         <input
           type="color"
@@ -153,15 +150,13 @@ export default function PredictionPanel({ params, onChange, presets, topParties 
           className="pred-slider"
         />
         <div className="pred-range-labels">
-          <span>0%</span><span>100%</span>
+          <span>0%</span>
+          <span>100%</span>
         </div>
       </div>
 
       <div className="pred-section">
-        <button
-          className="pred-toggle"
-          onClick={() => setShowAffinity(!showAffinity)}
-        >
+        <button className="pred-toggle" onClick={() => setShowAffinity(!showAffinity)}>
           {showAffinity ? '▾' : '▸'} Affinity Weights
           <span className="pred-hint">Who loses votes to the new party?</span>
         </button>
@@ -194,10 +189,7 @@ export default function PredictionPanel({ params, onChange, presets, topParties 
       </div>
 
       <div className="pred-section">
-        <button
-          className="pred-toggle"
-          onClick={() => setShowOverrides(!showOverrides)}
-        >
+        <button className="pred-toggle" onClick={() => setShowOverrides(!showOverrides)}>
           {showOverrides ? '▾' : '▸'} Per-Constituency Overrides
           <span className="pred-hint">Set custom vote share for specific seats</span>
         </button>

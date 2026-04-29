@@ -1,21 +1,36 @@
 import { useState, useEffect } from 'react';
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid,
-  LineChart, Line, Cell,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  CartesianGrid,
+  LineChart,
+  Line,
+  Cell,
 } from 'recharts';
 import { api } from '../api';
 import { partyColor, normalizeParty } from '../constants';
+import { useStateSelection } from '../contexts/StateContext';
 
 export default function StateOverview() {
+  const { selectedState, electionType } = useStateSelection();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.stateSwing().then((rows) => {
-      setData(rows);
-      setLoading(false);
-    }).catch(() => setLoading(false));
-  }, []);
+    setLoading(true);
+    api
+      .stateSwing(selectedState, electionType)
+      .then((rows) => {
+        setData(rows);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [selectedState, electionType]);
 
   if (loading) return <div className="loading">Loading state overview…</div>;
 
@@ -99,7 +114,15 @@ export default function StateOverview() {
           <Tooltip contentStyle={{ background: '#1e1e2e', border: '1px solid #444' }} />
           <Legend />
           {top2.map((p) => (
-            <Line key={p} type="monotone" dataKey={p} stroke={partyColor(p)} strokeWidth={3} dot={{ r: 5 }} connectNulls />
+            <Line
+              key={p}
+              type="monotone"
+              dataKey={p}
+              stroke={partyColor(p)}
+              strokeWidth={3}
+              dot={{ r: 5 }}
+              connectNulls
+            />
           ))}
         </LineChart>
       </ResponsiveContainer>

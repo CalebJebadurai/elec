@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../api';
 
-export default function SaveBookmarkModal({ params, onClose, onSaved }) {
+export default function SaveBookmarkModal({ params, stateName, onClose, onSaved }) {
   const { user } = useAuth();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -21,7 +21,7 @@ export default function SaveBookmarkModal({ params, onClose, onSaved }) {
       const bookmark = await api.createBookmark({
         title: title.trim(),
         description: description.trim(),
-        params,
+        params: { ...params, state_name: stateName },
         is_public: isPublic,
       });
       onSaved?.(bookmark);
@@ -36,7 +36,9 @@ export default function SaveBookmarkModal({ params, onClose, onSaved }) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <button className="modal-close" onClick={onClose}>×</button>
+        <button className="modal-close" onClick={onClose}>
+          ×
+        </button>
         <h2>Save Prediction</h2>
 
         {error && <div className="modal-error">{error}</div>}

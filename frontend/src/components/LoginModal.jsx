@@ -1,6 +1,13 @@
 import { useState, useRef, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { auth, RecaptchaVerifier, signInWithPhoneNumber, googleProvider, signInWithPopup, GoogleAuthProvider } from '../firebase';
+import {
+  auth,
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
+  googleProvider,
+  signInWithPopup,
+  GoogleAuthProvider,
+} from '../firebase';
 
 const COUNTRY_CODES = [
   { flag: '🇮🇳', code: '+91', short: 'IN' },
@@ -40,13 +47,14 @@ export default function LoginModal({ onClose }) {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [consent, setConsent] = useState(false);
   const recaptchaRef = useRef(null);
   const confirmationResultRef = useRef(null);
   const otpRefs = useRef([]);
 
   const handleOtpChange = useCallback((index, value) => {
     if (!/^\d?$/.test(value)) return;
-    setOtp(prev => {
+    setOtp((prev) => {
       const next = [...prev];
       next[index] = value;
       return next;
@@ -56,20 +64,25 @@ export default function LoginModal({ onClose }) {
     }
   }, []);
 
-  const handleOtpKeyDown = useCallback((index, e) => {
-    if (e.key === 'Backspace' && !otp[index] && index > 0) {
-      otpRefs.current[index - 1]?.focus();
-    }
-  }, [otp]);
+  const handleOtpKeyDown = useCallback(
+    (index, e) => {
+      if (e.key === 'Backspace' && !otp[index] && index > 0) {
+        otpRefs.current[index - 1]?.focus();
+      }
+    },
+    [otp]
+  );
 
   const handleOtpPaste = useCallback((e) => {
     e.preventDefault();
     const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
     if (!pasted) return;
     const digits = pasted.split('');
-    setOtp(prev => {
+    setOtp((prev) => {
       const next = [...prev];
-      digits.forEach((d, i) => { next[i] = d; });
+      digits.forEach((d, i) => {
+        next[i] = d;
+      });
       return next;
     });
     const focusIdx = Math.min(digits.length, 5);
@@ -79,7 +92,11 @@ export default function LoginModal({ onClose }) {
   function getOrCreateRecaptcha() {
     // Clear any previous instance
     if (recaptchaRef.current) {
-      try { recaptchaRef.current.clear(); } catch (_) {}
+      try {
+        recaptchaRef.current.clear();
+      } catch {
+        /* recaptcha already cleared */
+      }
       recaptchaRef.current = null;
     }
     recaptchaRef.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
@@ -167,7 +184,9 @@ export default function LoginModal({ onClose }) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <button className="modal-close" onClick={onClose}>×</button>
+        <button className="modal-close" onClick={onClose}>
+          ×
+        </button>
         <h2>Sign In</h2>
         <p className="modal-subtitle">
           {step === 'google'
@@ -203,7 +222,34 @@ export default function LoginModal({ onClose }) {
               />
             </div>
             <div id="recaptcha-container" />
-            <button type="submit" className="modal-btn" disabled={loading}>
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 8,
+                fontSize: 12,
+                color: 'var(--text-muted)',
+                margin: '8px 0',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={consent}
+                onChange={(e) => setConsent(e.target.checked)}
+                style={{ marginTop: 2 }}
+              />
+              <span>
+                I agree to the{' '}
+                <a href="/privacy" target="_blank" rel="noopener noreferrer">
+                  Privacy Policy
+                </a>{' '}
+                and{' '}
+                <a href="/terms" target="_blank" rel="noopener noreferrer">
+                  Terms of Service
+                </a>
+              </span>
+            </label>
+            <button type="submit" className="modal-btn" disabled={loading || !consent}>
               {loading ? 'Sending...' : 'Send OTP'}
             </button>
           </form>
@@ -211,7 +257,9 @@ export default function LoginModal({ onClose }) {
 
         {step === 'otp' && (
           <form onSubmit={handleVerifyOtp}>
-            <label className="modal-label">Enter OTP sent to {countryCode} {mobile}</label>
+            <label className="modal-label">
+              Enter OTP sent to {countryCode} {mobile}
+            </label>
             <div className="otp-boxes" onPaste={handleOtpPaste}>
               {otp.map((digit, i) => (
                 <input
@@ -229,7 +277,11 @@ export default function LoginModal({ onClose }) {
                 />
               ))}
             </div>
-            <button type="submit" className="modal-btn" disabled={loading || otp.join('').length < 6}>
+            <button
+              type="submit"
+              className="modal-btn"
+              disabled={loading || otp.join('').length < 6}
+            >
               {loading ? 'Verifying...' : 'Verify OTP'}
             </button>
           </form>
@@ -237,7 +289,9 @@ export default function LoginModal({ onClose }) {
 
         {step === 'google' && (
           <div>
-            <p className="modal-label">Phone verified! Link your Google account for a richer experience.</p>
+            <p className="modal-label">
+              Phone verified! Link your Google account for a richer experience.
+            </p>
             <button
               type="button"
               className="modal-btn modal-btn-google"
@@ -246,11 +300,7 @@ export default function LoginModal({ onClose }) {
             >
               {loading ? 'Linking...' : 'Sign in with Google'}
             </button>
-            <button
-              type="button"
-              className="modal-btn modal-btn-skip"
-              onClick={onClose}
-            >
+            <button type="button" className="modal-btn modal-btn-skip" onClick={onClose}>
               Skip for now
             </button>
           </div>

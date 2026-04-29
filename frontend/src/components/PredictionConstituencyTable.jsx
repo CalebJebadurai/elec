@@ -1,7 +1,12 @@
 import { useState, useMemo } from 'react';
 import { partyColor, normalizeParty } from '../constants';
 
-export default function PredictionConstituencyTable({ predictions, onOverride, latestYear, nextYear }) {
+export default function PredictionConstituencyTable({
+  predictions,
+  onOverride,
+  latestYear,
+  nextYear,
+}) {
   const latestYr = latestYear || 'Previous';
   const nextYr = nextYear || 'Next';
   const [search, setSearch] = useState('');
@@ -13,7 +18,7 @@ export default function PredictionConstituencyTable({ predictions, onOverride, l
   // Derive sub-regions from data
   const subRegions = useMemo(() => {
     const set = new Set((predictions || []).map((r) => r.sub_region).filter(Boolean));
-    return ['ALL', ...([...set].sort())];
+    return ['ALL', ...[...set].sort()];
   }, [predictions]);
 
   const filtered = useMemo(() => {
@@ -49,8 +54,7 @@ export default function PredictionConstituencyTable({ predictions, onOverride, l
           cmp =
             Math.abs(a.predicted_margin_pct || 0) -
             Math.abs(a.margin_percentage_latest || 0) -
-            (Math.abs(b.predicted_margin_pct || 0) -
-              Math.abs(b.margin_percentage_latest || 0));
+            (Math.abs(b.predicted_margin_pct || 0) - Math.abs(b.margin_percentage_latest || 0));
           break;
         case 'newParty':
           cmp = (a.new_party_share || 0) - (b.new_party_share || 0);
@@ -72,8 +76,7 @@ export default function PredictionConstituencyTable({ predictions, onOverride, l
     }
   };
 
-  const sortIcon = (key) =>
-    sortKey === key ? (sortDir === 1 ? ' ↑' : ' ↓') : '';
+  const sortIcon = (key) => (sortKey === key ? (sortDir === 1 ? ' ↑' : ' ↓') : '');
 
   const flippedCount = (predictions || []).filter((r) => r.flipped).length;
 
@@ -89,10 +92,7 @@ export default function PredictionConstituencyTable({ predictions, onOverride, l
           onChange={(e) => setSearch(e.target.value)}
           className="search-input"
         />
-        <select
-          value={regionFilter}
-          onChange={(e) => setRegionFilter(e.target.value)}
-        >
+        <select value={regionFilter} onChange={(e) => setRegionFilter(e.target.value)}>
           {subRegions.map((r) => (
             <option key={r} value={r}>
               {r === 'ALL' ? 'All Regions' : r}
@@ -115,7 +115,11 @@ export default function PredictionConstituencyTable({ predictions, onOverride, l
         <table className="const-grid">
           <thead>
             <tr>
-              <th className="sticky-col" onClick={() => handleSort('name')} style={{ cursor: 'pointer' }}>
+              <th
+                className="sticky-col"
+                onClick={() => handleSort('name')}
+                style={{ cursor: 'pointer' }}
+              >
                 Constituency{sortIcon('name')}
               </th>
               <th>District</th>
@@ -140,9 +144,7 @@ export default function PredictionConstituencyTable({ predictions, onOverride, l
           </thead>
           <tbody>
             {filtered.map((r) => {
-              const marginDelta =
-                (r.predicted_margin_pct || 0) -
-                (r.margin_percentage_latest || 0);
+              const marginDelta = (r.predicted_margin_pct || 0) - (r.margin_percentage_latest || 0);
               const newPartyCol = predictions?.some((x) => x.new_party_share > 0);
 
               return (
@@ -194,7 +196,10 @@ export default function PredictionConstituencyTable({ predictions, onOverride, l
                   )}
                   <td>
                     {r.flipped && (
-                      <span className="flip-indicator" title={`${r.winner_party_latest} → ${r.predicted_winner}`}>
+                      <span
+                        className="flip-indicator"
+                        title={`${r.winner_party_latest} → ${r.predicted_winner}`}
+                      >
                         ⇄
                       </span>
                     )}
