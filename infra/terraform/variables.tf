@@ -67,3 +67,61 @@ variable "allowed_origins" {
   type        = string
   default     = ""
 }
+
+variable "redis_url" {
+  description = "Redis connection URL (e.g. Upstash rediss:// URL)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "razorpay_key_id" {
+  description = "Razorpay API key ID"
+  type        = string
+  default     = ""
+}
+
+variable "razorpay_key_secret" {
+  description = "Razorpay API key secret"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "razorpay_webhook_secret" {
+  description = "Razorpay webhook signature secret"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "razorpay_plan_id_pro" {
+  description = "Razorpay subscription plan ID for Pro tier"
+  type        = string
+  default     = ""
+}
+
+variable "sentry_dsn" {
+  description = "Sentry DSN for error tracking"
+  type        = string
+  default     = ""
+}
+
+variable "firebase_project_id" {
+  description = "Firebase project ID for auth verification"
+  type        = string
+  default     = ""
+}
+
+variable "firebase_api_key" {
+  description = "Firebase API key"
+  type        = string
+  default     = ""
+}
+
+variable "seed_secret" {
+  description = "Secret for admin seed endpoint"
+  type        = string
+  sensitive   = true
+  default     = ""
+}

@@ -263,6 +263,61 @@ resource "google_cloud_run_v2_service" "api" {
         value = var.google_client_id
       }
 
+      env {
+        name  = "REDIS_URL"
+        value = var.redis_url
+      }
+
+      env {
+        name  = "RAZORPAY_KEY_ID"
+        value = var.razorpay_key_id
+      }
+
+      env {
+        name  = "RAZORPAY_KEY_SECRET"
+        value = var.razorpay_key_secret
+      }
+
+      env {
+        name  = "RAZORPAY_WEBHOOK_SECRET"
+        value = var.razorpay_webhook_secret
+      }
+
+      env {
+        name  = "RAZORPAY_PLAN_ID_PRO"
+        value = var.razorpay_plan_id_pro
+      }
+
+      env {
+        name  = "SENTRY_DSN"
+        value = var.sentry_dsn
+      }
+
+      env {
+        name  = "FIREBASE_PROJECT_ID"
+        value = var.firebase_project_id
+      }
+
+      env {
+        name  = "FIREBASE_API_KEY"
+        value = var.firebase_api_key
+      }
+
+      env {
+        name  = "COOKIE_SECURE"
+        value = "true"
+      }
+
+      env {
+        name  = "WEB_CONCURRENCY"
+        value = "4"
+      }
+
+      env {
+        name  = "SEED_SECRET"
+        value = var.seed_secret
+      }
+
       startup_probe {
         http_get {
           path = "/health"

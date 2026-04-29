@@ -6,8 +6,8 @@ region         = "asia-south1"       # Mumbai — closest to Tamil Nadu
 domain         = "tnelection.in"     # Your domain
 db_password    = "CHANGE_ME"         # Use: openssl rand -base64 32
 jwt_secret     = "CHANGE_ME"         # Use: openssl rand -base64 48
-db_ha_enabled  = true                # Regional HA failover
-db_tier        = "db-custom-1-3840"  # 1 vCPU, 3.75GB RAM
+db_ha_enabled  = false               # Set true for production HA
+db_tier        = "db-f1-micro"       # Shared core, 614MB — ~$8.50/mo
 
 # Scaling
 api_min_instances = 1   # 1 = zero downtime; 0 = scale-to-zero (saves $)
@@ -16,3 +16,18 @@ api_max_instances = 10  # Handles election-day traffic spikes
 # OAuth (optional — leave empty to disable)
 google_client_id = ""
 allowed_origins  = "" # Defaults to https://{domain}
+
+# Redis (Upstash or other managed Redis)
+redis_url = ""  # e.g. rediss://default:PASSWORD@ENDPOINT:PORT
+
+# Razorpay payment integration
+razorpay_key_id        = ""
+razorpay_key_secret    = ""
+razorpay_webhook_secret = ""
+razorpay_plan_id_pro   = ""
+
+# Monitoring & Auth
+sentry_dsn          = ""
+firebase_project_id = ""
+firebase_api_key    = ""
+seed_secret         = ""  # Use: openssl rand -base64 32

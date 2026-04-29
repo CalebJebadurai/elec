@@ -55,3 +55,4 @@ infra/terraform/terraform.tfvars
 # Unused boilerplate
 frontend/src/assets/react.svg
 frontend/src/assets/vite.svg
+frontend/coverage/
