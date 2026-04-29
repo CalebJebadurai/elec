@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
 
-from auth import require_user
+from auth import get_current_user, require_user
 from database import get_pool
 from models import (
     CandidateResult,
@@ -12,9 +12,12 @@ from models import (
     ConstituencyResult,
     DistrictSummary,
     Election,
+    ElectionListItem,
     PaginatedElections,
+    PaginatedElectionsList,
     PartySummary,
     PredictionDataResponse,
+    StateInfo,
     StateSwingSummary,
     StatsSummary,
     YearSummary,
@@ -22,13 +25,18 @@ from models import (
 
 router = APIRouter()
 
-# ── Server-side response cache for read-only endpoints ────
+# ── Server-side response cache (Redis-backed with in-memory fallback) ──
+from cache import get_cached as _get_cached_async, set_cached as _set_cached_async
 import time as _time
+_CACHE_TTL = 86400  # 24 hours — election data is static between ingestion events
+
+# Sync wrappers are replaced by async calls in the endpoints
+# Keep legacy dict for backward compat during transition
 _response_cache: dict[str, tuple[float, any]] = {}
-_CACHE_TTL = 300  # 5 minutes
 
 
 def _get_cached(key: str):
+    """Sync fallback — check in-memory only (async endpoints use _get_cached_async)."""
     entry = _response_cache.get(key)
     if entry and _time.time() - entry[0] < _CACHE_TTL:
         return entry[1]
@@ -36,6 +44,7 @@ def _get_cached(key: str):
 
 
 def _set_cached(key: str, data):
+    """Sync fallback — store in-memory only."""
     _response_cache[key] = (_time.time(), data)
 
 
@@ -43,11 +52,156 @@ def _row_to_election(row) -> Election:
     return Election(**dict(row))
 
 
+_ELECTION_LIST_COLS = (
+    "id, year, state_name, constituency_name, constituency_no, party, candidate, "
+    "votes, vote_share_percentage, position, margin, turnout_percentage, "
+    "election_type, district_name"
+)
+
+
+def _row_to_election_list_item(row) -> ElectionListItem:
+    return ElectionListItem(**dict(row))
+
+
+# ---------------------------------------------------------------------------
+# Election type SQL filter helper
+# ---------------------------------------------------------------------------
+def _et_filter(election_type: str) -> str:
+    """Return SQL condition for election_type matching."""
+    if election_type.upper() == "GE":
+        return "election_type = 'Lok Sabha Election (GE)'"
+    return "election_type = 'State Assembly Election (AE)'"
+
+
+def _et_display(election_type: str) -> str:
+    """Return full display string for election type code."""
+    if election_type.upper() == "GE":
+        return "Lok Sabha Election (GE)"
+    return "State Assembly Election (AE)"
+
+
+# ---------------------------------------------------------------------------
+# Server-side party normalization
+# ---------------------------------------------------------------------------
+_PARTY_ALIASES = {
+    'INC(I)': 'INC', 'INC (I)': 'INC',
+    'ADK': 'ADMK', 'AIADMK': 'ADMK', 'ADK(JL)': 'ADMK',
+    'BHP': 'BJP', 'B.J.P': 'BJP', 'B.J.P.': 'BJP',
+    'S.P': 'SP', 'S.P.': 'SP',
+    'JD(S)': 'JDS', 'JD (S)': 'JDS',
+    'JD(U)': 'JDU', 'JD (U)': 'JDU',
+    'B.S.P.': 'BSP', 'B.S.P': 'BSP', 'BSP(K)': 'BSP', 'BSP (K)': 'BSP',
+    'SHS': 'SS', 'ShivSena': 'SS', 'SHIV SENA': 'SS',
+    'TRS': 'BRS',
+}
+
+
+def _normalize_party(name: str | None) -> str:
+    if not name:
+        return 'IND'
+    return _PARTY_ALIASES.get(name.strip(), name.strip())
+
+
+# ---------------------------------------------------------------------------
+# General election year detection — per-state + election_type
+# ---------------------------------------------------------------------------
+_GENERAL_YEARS_CACHE: dict[str, list[int]] = {}
+
+
+async def _get_general_years(pool, state: str, election_type: str = "AE") -> list[int]:
+    cache_key = f"{state}:{election_type}"
+    if cache_key in _GENERAL_YEARS_CACHE:
+        return _GENERAL_YEARS_CACHE[cache_key]
+
+    et_sql = _et_filter(election_type)
+    rows = await pool.fetch(f"""
+        WITH year_counts AS (
+            SELECT year, COUNT(DISTINCT constituency_name) AS n
+            FROM tcpd_ae
+            WHERE state_name = $1
+              AND {et_sql}
+              AND (poll_no = 0 OR poll_no IS NULL)
+            GROUP BY year
+        ),
+        max_count AS (
+            SELECT MAX(n) AS max_n FROM year_counts
+        )
+        SELECT yc.year FROM year_counts yc, max_count mc
+        WHERE yc.n >= mc.max_n * 0.4
+        ORDER BY yc.year
+    """, state)
+
+    result = [r["year"] for r in rows]
+    _GENERAL_YEARS_CACHE[cache_key] = result
+    return result
+
+
+# ---------------------------------------------------------------------------
+# GET /states  — list available states with metadata
+# ---------------------------------------------------------------------------
+_EXCLUDED_STATES = {'Mysore', 'Madras', 'Goa_Daman_&_Diu', 'Goa,_Daman_&_Diu'}
+
+
+@router.get("/states", response_model=list[StateInfo])
+async def list_states():
+    cached = _get_cached("states_list")
+    if cached:
+        return cached
+
+    pool = await get_pool()
+    rows = await pool.fetch("""
+        SELECT state_name,
+            ARRAY_AGG(DISTINCT election_type) AS election_types,
+            MIN(CASE WHEN election_type = 'State Assembly Election (AE)' THEN year END) AS ae_year_min,
+            MAX(CASE WHEN election_type = 'State Assembly Election (AE)' THEN year END) AS ae_year_max,
+            MIN(CASE WHEN election_type = 'Lok Sabha Election (GE)' THEN year END) AS ge_year_min,
+            MAX(CASE WHEN election_type = 'Lok Sabha Election (GE)' THEN year END) AS ge_year_max,
+            COUNT(DISTINCT CASE WHEN election_type = 'State Assembly Election (AE)'
+                THEN constituency_name END) AS ae_constituencies,
+            COUNT(DISTINCT CASE WHEN election_type = 'Lok Sabha Election (GE)'
+                THEN constituency_name END) AS ge_constituencies
+        FROM tcpd_ae
+        WHERE state_name IS NOT NULL
+        GROUP BY state_name
+        ORDER BY state_name
+    """)
+
+    result = []
+    for r in rows:
+        sn = r["state_name"]
+        if sn in _EXCLUDED_STATES:
+            continue
+        latest_ae = r["ae_year_max"]
+        etypes = []
+        for et in (r["election_types"] or []):
+            if et and "(" in et:
+                etypes.append(et.split("(")[-1].rstrip(")"))
+            elif et:
+                etypes.append(et)
+        result.append(StateInfo(
+            state_name=sn,
+            display_name=sn.replace("_", " "),
+            election_types=etypes,
+            ae_year_min=r["ae_year_min"],
+            ae_year_max=r["ae_year_max"],
+            ge_year_min=r["ge_year_min"],
+            ge_year_max=r["ge_year_max"],
+            ae_constituencies=r["ae_constituencies"],
+            ge_constituencies=r["ge_constituencies"],
+            latest_ae_general_year=latest_ae,
+            next_election_est=(latest_ae + 5) if latest_ae else None,
+        ))
+
+    _set_cached("states_list", result)
+    return result
+
+
 # ---------------------------------------------------------------------------
 # GET /elections  — paginated list with optional filters
 # ---------------------------------------------------------------------------
-@router.get("/elections", response_model=PaginatedElections)
+@router.get("/elections", response_model=PaginatedElectionsList)
 async def list_elections(
+    state: str = Query(...),
     year: int | None = None,
     party: str | None = None,
     constituency_name: str | None = None,
@@ -59,7 +213,7 @@ async def list_elections(
     election_type: str | None = None,
     limit: int = Query(default=50, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
-    _user: dict = Depends(require_user),
+    _user: dict | None = Depends(get_current_user),
 ):
     pool = await get_pool()
 
@@ -68,6 +222,7 @@ async def list_elections(
     idx = 1
 
     filters = {
+        "state_name": state,
         "year": year,
         "party": party,
         "constituency_name": constituency_name,
@@ -94,17 +249,17 @@ async def list_elections(
     total = await pool.fetchval(count_sql, *params)
 
     data_sql = (
-        f"SELECT * FROM tcpd_ae{where} ORDER BY year, constituency_no, position"
+        f"SELECT {_ELECTION_LIST_COLS} FROM tcpd_ae{where} ORDER BY year, constituency_no, position"
         f" LIMIT ${idx} OFFSET ${idx + 1}"
     )
     params.extend([limit, offset])
     rows = await pool.fetch(data_sql, *params)
 
-    return PaginatedElections(
+    return PaginatedElectionsList(
         total=total,
         limit=limit,
         offset=offset,
-        data=[_row_to_election(r) for r in rows],
+        data=[_row_to_election_list_item(r) for r in rows],
     )
 
 
@@ -112,7 +267,7 @@ async def list_elections(
 # GET /elections/{id}  — single record by primary key
 # ---------------------------------------------------------------------------
 @router.get("/elections/{record_id}", response_model=Election)
-async def get_election(record_id: int, _user: dict = Depends(require_user)):
+async def get_election(record_id: int, _user: dict | None = Depends(get_current_user)):
     pool = await get_pool()
     row = await pool.fetchrow("SELECT * FROM tcpd_ae WHERE id = $1", record_id)
     if row is None:
@@ -123,28 +278,31 @@ async def get_election(record_id: int, _user: dict = Depends(require_user)):
 # ---------------------------------------------------------------------------
 # GET /elections/{year}/results  — winners (position=1) for a given year
 # ---------------------------------------------------------------------------
-@router.get("/elections/{year}/results", response_model=list[Election])
-async def get_year_results(year: int, _user: dict = Depends(require_user)):
+@router.get("/elections/{year}/results", response_model=list[ElectionListItem])
+async def get_year_results(year: int, state: str = Query(...), election_type: str = Query("AE"), _user: dict | None = Depends(get_current_user)):
     pool = await get_pool()
+    et_sql = _et_filter(election_type)
     rows = await pool.fetch(
-        "SELECT * FROM tcpd_ae WHERE year = $1 AND position = 1"
-        " ORDER BY constituency_no",
-        year,
+        f"SELECT {_ELECTION_LIST_COLS} FROM tcpd_ae WHERE year = $1 AND state_name = $2 AND position = 1 AND {et_sql}"
+        f" ORDER BY constituency_no",
+        year, state,
     )
     if not rows:
         raise HTTPException(status_code=404, detail=f"No results for year {year}")
-    return [_row_to_election(r) for r in rows]
+    return [_row_to_election_list_item(r) for r in rows]
 
 
 # ---------------------------------------------------------------------------
 # GET /years  — distinct years with candidate counts
 # ---------------------------------------------------------------------------
 @router.get("/years", response_model=list[YearSummary])
-async def list_years(_user: dict = Depends(require_user)):
+async def list_years(state: str = Query(...), election_type: str = Query("AE"), _user: dict | None = Depends(get_current_user)):
     pool = await get_pool()
+    et_sql = _et_filter(election_type)
     rows = await pool.fetch(
-        "SELECT year, COUNT(*) AS candidate_count FROM tcpd_ae"
-        " GROUP BY year ORDER BY year"
+        f"SELECT year, COUNT(*) AS candidate_count FROM tcpd_ae"
+        f" WHERE state_name = $1 AND {et_sql} GROUP BY year ORDER BY year",
+        state,
     )
     return [YearSummary(**dict(r)) for r in rows]
 
@@ -153,25 +311,37 @@ async def list_years(_user: dict = Depends(require_user)):
 # GET /parties  — distinct parties with total votes and candidate counts
 # ---------------------------------------------------------------------------
 @router.get("/parties", response_model=list[PartySummary])
-async def list_parties(_user: dict = Depends(require_user)):
+async def list_parties(state: str = Query(...), election_type: str = Query("AE"), _user: dict | None = Depends(get_current_user)):
     pool = await get_pool()
+    et_sql = _et_filter(election_type)
     rows = await pool.fetch(
-        "SELECT party, COUNT(*) AS candidate_count,"
-        " COALESCE(SUM(votes), 0) AS total_votes"
-        " FROM tcpd_ae GROUP BY party ORDER BY total_votes DESC"
+        f"SELECT party, COUNT(*) AS candidate_count,"
+        f" COALESCE(SUM(votes), 0) AS total_votes"
+        f" FROM tcpd_ae WHERE state_name = $1 AND {et_sql} GROUP BY party ORDER BY total_votes DESC",
+        state,
     )
-    return [PartySummary(**dict(r)) for r in rows]
+    # Merge party variants using server-side normalization
+    merged: dict[str, dict] = {}
+    for r in rows:
+        norm = _normalize_party(r["party"])
+        if norm not in merged:
+            merged[norm] = {"party": norm, "candidate_count": 0, "total_votes": 0}
+        merged[norm]["candidate_count"] += r["candidate_count"]
+        merged[norm]["total_votes"] += r["total_votes"]
+    return sorted(merged.values(), key=lambda x: x["total_votes"], reverse=True)
 
 
 # ---------------------------------------------------------------------------
 # GET /constituencies  — distinct constituencies with district
 # ---------------------------------------------------------------------------
 @router.get("/constituencies", response_model=list[ConstituencySummary])
-async def list_constituencies(_user: dict = Depends(require_user)):
+async def list_constituencies(state: str = Query(...), election_type: str = Query("AE"), _user: dict | None = Depends(get_current_user)):
     pool = await get_pool()
+    et_sql = _et_filter(election_type)
     rows = await pool.fetch(
-        "SELECT DISTINCT constituency_name, constituency_type, district_name"
-        " FROM tcpd_ae ORDER BY constituency_name"
+        f"SELECT DISTINCT constituency_name, constituency_type, district_name"
+        f" FROM tcpd_ae WHERE state_name = $1 AND {et_sql} ORDER BY constituency_name",
+        state,
     )
     return [ConstituencySummary(**dict(r)) for r in rows]
 
@@ -180,27 +350,31 @@ async def list_constituencies(_user: dict = Depends(require_user)):
 # GET /districts  — distinct districts with sub_region and constituency count
 # ---------------------------------------------------------------------------
 @router.get("/districts", response_model=list[DistrictSummary])
-async def list_districts(_user: dict = Depends(require_user)):
+async def list_districts(state: str = Query(...), election_type: str = Query("AE"), _user: dict | None = Depends(get_current_user)):
     pool = await get_pool()
+    et_sql = _et_filter(election_type)
     rows = await pool.fetch(
-        "SELECT district_name, sub_region,"
-        " COUNT(DISTINCT constituency_name) AS constituency_count"
-        " FROM tcpd_ae GROUP BY district_name, sub_region"
-        " ORDER BY district_name"
+        f"SELECT district_name, sub_region,"
+        f" COUNT(DISTINCT constituency_name) AS constituency_count"
+        f" FROM tcpd_ae WHERE state_name = $1 AND {et_sql} GROUP BY district_name, sub_region"
+        f" ORDER BY district_name",
+        state,
     )
     return [DistrictSummary(**dict(r)) for r in rows]
 
 
 # ---------------------------------------------------------------------------
-# GET /candidates  — search candidates by name with optional year/party filter
+# GET /candidates  — search candidates by name with optional year/party/state filter
 # ---------------------------------------------------------------------------
-@router.get("/candidates", response_model=list[Election])
+@router.get("/candidates", response_model=list[ElectionListItem])
 async def search_candidates(
     name: str = Query(..., min_length=2),
     year: int | None = None,
     party: str | None = None,
+    state: str | None = None,
+    election_type: str | None = None,
     limit: int = Query(default=50, ge=1, le=500),
-    _user: dict = Depends(require_user),
+    _user: dict | None = Depends(get_current_user),
 ):
     pool = await get_pool()
 
@@ -216,30 +390,37 @@ async def search_candidates(
         conditions.append(f"party = ${idx}")
         params.append(party)
         idx += 1
+    if state is not None:
+        conditions.append(f"state_name = ${idx}")
+        params.append(state)
+        idx += 1
+    if election_type is not None:
+        conditions.append(_et_filter(election_type))
 
     where = " AND ".join(conditions)
     params.append(limit)
 
     rows = await pool.fetch(
-        f"SELECT * FROM tcpd_ae WHERE {where}"
+        f"SELECT {_ELECTION_LIST_COLS} FROM tcpd_ae WHERE {where}"
         f" ORDER BY year DESC, votes DESC LIMIT ${idx}",
         *params,
     )
-    return [_row_to_election(r) for r in rows]
+    return [_row_to_election_list_item(r) for r in rows]
 
 
 # ---------------------------------------------------------------------------
-# GET /stats/summary  — aggregate statistics
+# GET /stats/summary  — aggregate statistics (state-scoped)
 # ---------------------------------------------------------------------------
 @router.get("/stats/summary", response_model=StatsSummary)
-async def stats_summary():
-    cached = _get_cached("stats_summary")
+async def stats_summary(state: str = Query(...), election_type: str = Query("AE")):
+    cache_key = f"stats_summary:{state}:{election_type}"
+    cached = _get_cached(cache_key)
     if cached:
         return cached
 
     pool = await get_pool()
-    # Combined query: aggregate stats + state info in one round-trip
-    row = await pool.fetchrow("""
+    et_sql = _et_filter(election_type)
+    row = await pool.fetchrow(f"""
         WITH agg AS (
             SELECT COUNT(*) AS total_records,
                 COUNT(DISTINCT year) AS total_years,
@@ -248,33 +429,31 @@ async def stats_summary():
                 COUNT(DISTINCT constituency_name) AS total_constituencies,
                 COUNT(DISTINCT district_name) AS total_districts
             FROM tcpd_ae
+            WHERE state_name = $1 AND {et_sql}
         ),
         meta AS (
             SELECT state_name, election_type FROM tcpd_ae
-            WHERE state_name IS NOT NULL LIMIT 1
+            WHERE state_name = $1 AND {et_sql} LIMIT 1
         )
         SELECT agg.*, meta.state_name, meta.election_type
         FROM agg, meta
-    """)
-    year_rows = await pool.fetch(
-        "SELECT year FROM ("
-        "  SELECT year, COUNT(DISTINCT constituency_name) AS n"
-        "  FROM tcpd_ae GROUP BY year"
-        "  HAVING COUNT(DISTINCT constituency_name) > 50"
-        ") sub ORDER BY year"
-    )
-    general_years = [r["year"] for r in year_rows]
-    latest_year = general_years[-1] if general_years else dict(row).get("year_max")
+    """, state)
+
+    if row is None or row["total_records"] is None or row["total_records"] == 0:
+        raise HTTPException(status_code=404, detail=f"No {election_type} data for state: {state}")
+
+    general_years = await _get_general_years(pool, state, election_type)
+    latest_year = general_years[-1] if general_years else row["year_max"]
     next_election_year = (latest_year + 5) if latest_year else None
 
     electors = None
     if latest_year is not None:
-        electors = await pool.fetchval(
-            "SELECT SUM(DISTINCT e.electors) FROM "
-            "(SELECT constituency_no, MAX(electors) AS electors FROM tcpd_ae"
-            " WHERE year = $1 GROUP BY constituency_no) e",
-            latest_year,
-        )
+        electors = await pool.fetchval(f"""
+            SELECT SUM(DISTINCT e.electors) FROM
+            (SELECT constituency_no, MAX(electors) AS electors FROM tcpd_ae
+             WHERE year = $1 AND state_name = $2 AND (poll_no = 0 OR poll_no IS NULL) AND {et_sql}
+             GROUP BY constituency_no) e
+        """, latest_year, state)
 
     result = StatsSummary(
         total_records=row["total_records"],
@@ -284,59 +463,41 @@ async def stats_summary():
         total_parties=row["total_parties"],
         total_constituencies=row["total_constituencies"],
         total_districts=row["total_districts"],
-        state_name=row["state_name"].replace("_", " ") if row["state_name"] else None,
+        state_name=state.replace("_", " "),
         election_type=row["election_type"],
+        election_type_code=election_type.upper(),
         general_years=general_years,
         next_election_year=next_election_year,
         total_electors_latest=electors,
     )
-    _set_cached("stats_summary", result)
+    _set_cached(cache_key, result)
     return result
 
 
 # ---------------------------------------------------------------------------
 # GET /swings/constituency/{name}  — year-by-year results for a constituency
 # ---------------------------------------------------------------------------
-# General election years are derived from data; this is a fallback
-_GENERAL_YEARS_CACHE: list[int] | None = None
-
-
-async def _get_general_years(pool) -> list[int]:
-    global _GENERAL_YEARS_CACHE
-    if _GENERAL_YEARS_CACHE is None:
-        # Only include years with a significant number of constituencies
-        # (filters out by-elections which typically cover 1-5 seats)
-        rows = await pool.fetch(
-            "SELECT year, COUNT(DISTINCT constituency_name) AS n"
-            " FROM tcpd_ae GROUP BY year"
-            " HAVING COUNT(DISTINCT constituency_name) > 50"
-            " ORDER BY year"
-        )
-        _GENERAL_YEARS_CACHE = [r["year"] for r in rows]
-    return _GENERAL_YEARS_CACHE
-
-
 @router.get("/swings/constituency/{name}", response_model=ConstituencySwing)
-async def constituency_swing(name: str, _user: dict = Depends(require_user)):
+async def constituency_swing(name: str, state: str = Query(...), election_type: str = Query("AE"), _user: dict | None = Depends(get_current_user)):
     pool = await get_pool()
-    general_years = await _get_general_years(pool)
-    # Get metadata
+    general_years = await _get_general_years(pool, state, election_type)
+    et_sql = _et_filter(election_type)
     meta = await pool.fetchrow(
-        "SELECT DISTINCT constituency_name, constituency_no, district_name,"
-        " sub_region, constituency_type"
-        " FROM tcpd_ae WHERE constituency_name = $1 LIMIT 1", name
+        f"SELECT DISTINCT constituency_name, constituency_no, district_name,"
+        f" sub_region, constituency_type"
+        f" FROM tcpd_ae WHERE constituency_name = $1 AND state_name = $2 AND {et_sql} LIMIT 1", name, state
     )
     if meta is None:
         raise HTTPException(status_code=404, detail="Constituency not found")
 
     rows = await pool.fetch(
-        "SELECT year, constituency_name, constituency_no, candidate, party,"
-        " votes, position, margin, margin_percentage, turnout_percentage,"
-        " enop, valid_votes, electors, n_cand, vote_share_percentage"
-        " FROM tcpd_ae WHERE constituency_name = $1 AND position <= 2"
-        " AND year = ANY($2)"
-        " ORDER BY year, position",
-        name, general_years,
+        f"SELECT year, constituency_name, constituency_no, candidate, party,"
+        f" votes, position, margin, margin_percentage, turnout_percentage,"
+        f" enop, valid_votes, electors, n_cand, vote_share_percentage"
+        f" FROM tcpd_ae WHERE constituency_name = $1 AND state_name = $3 AND position <= 2"
+        f" AND year = ANY($2) AND {et_sql}"
+        f" ORDER BY year, position",
+        name, general_years, state,
     )
 
     results: list[ConstituencyResult] = []
@@ -384,14 +545,16 @@ async def constituency_swing(name: str, _user: dict = Depends(require_user)):
 # GET /swings/state  — state-level party swing summary per general election
 # ---------------------------------------------------------------------------
 @router.get("/swings/state", response_model=list[StateSwingSummary])
-async def state_swing(_user: dict = Depends(require_user)):
-    cached = _get_cached("swings_state")
+async def state_swing(state: str = Query(...), election_type: str = Query("AE"), _user: dict | None = Depends(get_current_user)):
+    cache_key = f"swings_state:{state}:{election_type}"
+    cached = _get_cached(cache_key)
     if cached:
         return cached
 
     pool = await get_pool()
-    general_years = await _get_general_years(pool)
-    rows = await pool.fetch("""
+    general_years = await _get_general_years(pool, state, election_type)
+    et_sql = _et_filter(election_type)
+    rows = await pool.fetch(f"""
         WITH party_year AS (
             SELECT year, party,
                 SUM(CASE WHEN position = 1 THEN 1 ELSE 0 END) AS seats_won,
@@ -399,7 +562,7 @@ async def state_swing(_user: dict = Depends(require_user)):
                 ROUND(AVG(vote_share_percentage)::numeric, 2) AS avg_vote_share,
                 ROUND(AVG(CASE WHEN position = 1 THEN margin_percentage END)::numeric, 2) AS avg_margin
             FROM tcpd_ae
-            WHERE year = ANY($1) AND party IS NOT NULL
+            WHERE year = ANY($1) AND party IS NOT NULL AND state_name = $2 AND {et_sql}
             GROUP BY year, party
             HAVING SUM(CASE WHEN position = 1 THEN 1 ELSE 0 END) >= 1
         ),
@@ -411,9 +574,9 @@ async def state_swing(_user: dict = Depends(require_user)):
             FROM party_year
         )
         SELECT * FROM with_lag ORDER BY year, seats_won DESC
-    """, general_years)
+    """, general_years, state)
     result = [StateSwingSummary(**dict(r)) for r in rows]
-    _set_cached("swings_state", result)
+    _set_cached(cache_key, result)
     return result
 
 
@@ -421,14 +584,16 @@ async def state_swing(_user: dict = Depends(require_user)):
 # GET /swings/constituencies  — list all constituencies with their swing history
 # ---------------------------------------------------------------------------
 @router.get("/swings/constituencies", response_model=list[ConstituencySwingRow])
-async def all_constituency_swings(_user: dict = Depends(require_user)):
-    cached = _get_cached("swings_constituencies")
+async def all_constituency_swings(state: str = Query(...), election_type: str = Query("AE"), _user: dict | None = Depends(get_current_user)):
+    cache_key = f"swings_constituencies:{state}:{election_type}"
+    cached = _get_cached(cache_key)
     if cached:
         return cached
 
     pool = await get_pool()
-    general_years = await _get_general_years(pool)
-    rows = await pool.fetch("""
+    general_years = await _get_general_years(pool, state, election_type)
+    et_sql = _et_filter(election_type)
+    rows = await pool.fetch(f"""
         SELECT constituency_name, constituency_no, district_name,
             sub_region, constituency_type, year,
             MAX(CASE WHEN position=1 THEN party END) AS winner_party,
@@ -439,31 +604,36 @@ async def all_constituency_swings(_user: dict = Depends(require_user)):
             MAX(CASE WHEN position=1 THEN margin_percentage END) AS margin_percentage,
             MAX(CASE WHEN position=1 THEN turnout_percentage END) AS turnout_percentage
         FROM tcpd_ae
-        WHERE position <= 2 AND year = ANY($1)
+        WHERE position <= 2 AND year = ANY($1) AND state_name = $2 AND {et_sql}
         GROUP BY constituency_name, constituency_no, district_name,
             sub_region, constituency_type, year
         ORDER BY constituency_name, year
-    """, general_years)
+    """, general_years, state)
     result = [dict(r) for r in rows]
-    _set_cached("swings_constituencies", result)
+    _set_cached(cache_key, result)
     return result
 
 
 # ---------------------------------------------------------------------------
 # GET /predict/data  — full candidate breakdown for the last 2 elections
 # ---------------------------------------------------------------------------
-
-
 @router.get("/predict/data", response_model=PredictionDataResponse)
-async def prediction_data(_user: dict = Depends(require_user)):
-    cached = _get_cached("predict_data")
+async def prediction_data(state: str = Query(...), election_type: str = Query("AE"), _user: dict = Depends(require_user)):
+    if election_type.upper() != "AE":
+        raise HTTPException(
+            status_code=501,
+            detail="Predictions are only available for State Assembly Elections (AE). "
+                   "Lok Sabha elections have different political dynamics that require a separate model."
+        )
+
+    cache_key = f"predict_data:{state}"
+    cached = _get_cached(cache_key)
     if cached:
         return cached
 
     pool = await get_pool()
-    general_years = await _get_general_years(pool)
+    general_years = await _get_general_years(pool, state)
 
-    # Use the last two election years dynamically
     if len(general_years) >= 2:
         latest_year, prev_year = general_years[-1], general_years[-2]
     elif len(general_years) == 1:
@@ -471,19 +641,16 @@ async def prediction_data(_user: dict = Depends(require_user)):
     else:
         latest_year, prev_year = 2021, 2016
 
-    # Fetch all candidates for the last 2 elections
     rows = await pool.fetch("""
         SELECT year, constituency_name, constituency_no, constituency_type,
             district_name, sub_region, party, votes, vote_share_percentage,
             position, valid_votes, electors, turnout_percentage, enop, n_cand,
             candidate, margin, margin_percentage
         FROM tcpd_ae
-        WHERE year IN ($1, $2)
+        WHERE year IN ($1, $2) AND state_name = $3
         ORDER BY constituency_name, year, position
-    """, latest_year, prev_year)
+    """, latest_year, prev_year, state)
 
-    # Group by constituency
-    from collections import defaultdict
     by_const: dict[str, dict] = {}
 
     for r in rows:
@@ -543,12 +710,12 @@ async def prediction_data(_user: dict = Depends(require_user)):
     )
 
     result = PredictionDataResponse(
-        total_electors_next=total_electors_latest,  # estimate, same as latest
+        total_electors_next=total_electors_latest,
         total_electors_latest=total_electors_latest,
         latest_year=latest_year,
         prev_year=prev_year,
         constituency_count=len(constituencies),
         constituencies=constituencies,
     )
-    _set_cached("predict_data", result)
+    _set_cached(cache_key, result)
     return result

@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from datetime import datetime
 
 
 class Election(BaseModel):
@@ -75,9 +76,24 @@ class DistrictSummary(BaseModel):
     constituency_count: int
 
 
+class StateInfo(BaseModel):
+    state_name: str
+    display_name: str
+    election_types: list[str] = []
+    ae_year_min: int | None = None
+    ae_year_max: int | None = None
+    ge_year_min: int | None = None
+    ge_year_max: int | None = None
+    ae_constituencies: int = 0
+    ge_constituencies: int = 0
+    latest_ae_general_year: int | None = None
+    next_election_est: int | None = None
+
+
 class StatsSummary(BaseModel):
     state_name: str | None = None
     election_type: str | None = None
+    election_type_code: str = "AE"
     total_records: int
     total_years: int
     year_min: int
@@ -94,6 +110,31 @@ class PaginatedElections(BaseModel):
     total: int
     limit: int
     offset: int
+    data: list[Election]
+
+
+class ElectionListItem(BaseModel):
+    id: int
+    year: int | None = None
+    state_name: str | None = None
+    constituency_name: str | None = None
+    constituency_no: int | None = None
+    party: str | None = None
+    candidate: str | None = None
+    votes: int | None = None
+    vote_share_percentage: float | None = None
+    position: int | None = None
+    margin: int | None = None
+    turnout_percentage: float | None = None
+    election_type: str | None = None
+    district_name: str | None = None
+
+
+class PaginatedElectionsList(BaseModel):
+    total: int
+    limit: int
+    offset: int
+    data: list[ElectionListItem]
     data: list[Election]
 
 
@@ -196,3 +237,87 @@ class PredictionDataResponse(BaseModel):
     prev_year: int
     constituency_count: int
     constituencies: list[ConstituencyPredictionData]
+
+
+# ---------------------------------------------------------------------------
+# National dashboard models
+# ---------------------------------------------------------------------------
+class NationalPartyStrength(BaseModel):
+    party: str
+    states_won_in: int = 0
+    total_seats_won: int = 0
+    avg_vote_share: float = 0.0
+    years_active: list[int] = []
+
+
+class NationalStateSummary(BaseModel):
+    state_name: str
+    display_name: str = ""
+    latest_year: int | None = None
+    total_constituencies: int = 0
+    ruling_party: str | None = None
+    ruling_party_seats: int = 0
+    runner_up_party: str | None = None
+    runner_up_seats: int = 0
+    avg_turnout: float | None = None
+    total_electors: int | None = None
+
+
+class UpcomingElection(BaseModel):
+    state_name: str
+    display_name: str = ""
+    last_election_year: int
+    estimated_next_year: int
+    election_type_code: str
+
+
+class NationalTurnoutTrend(BaseModel):
+    year: int
+    avg_turnout: float
+    total_electors: int | None = None
+    states_counted: int = 0
+
+
+class PartyMapEntry(BaseModel):
+    state_name: str
+    display_name: str = ""
+    seats_won: int = 0
+    total_seats: int = 0
+    vote_share: float | None = None
+    year: int | None = None
+
+
+# ── Subscription & API key models ──────────────────────────
+
+class SubscriptionOut(BaseModel):
+    id: int
+    tier: str
+    status: str
+    current_period_start: datetime | None = None
+    current_period_end: datetime | None = None
+    grace_period_end: datetime | None = None
+    created_at: datetime
+    canceled_at: datetime | None = None
+
+
+class ApiKeyOut(BaseModel):
+    id: int
+    key_prefix: str
+    label: str | None = None
+    created_at: datetime
+    last_used_at: datetime | None = None
+    is_active: bool
+
+
+class ApiKeyCreated(BaseModel):
+    id: int
+    key: str
+    key_prefix: str
+    label: str | None = None
+
+
+class UsageSummaryOut(BaseModel):
+    date: str
+    endpoint_group: str | None = None
+    request_count: int
+    total_response_time_ms: int

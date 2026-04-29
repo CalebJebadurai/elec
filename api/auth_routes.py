@@ -8,10 +8,10 @@ import time as _time
 import httpx
 import jwt as pyjwt
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, field_validator
 
-from auth import create_token, require_user
+from auth import create_token, require_user, set_auth_cookies, clear_auth_cookies
 from database import get_pool
 
 auth_router = APIRouter()
@@ -98,12 +98,13 @@ class UserProfile(BaseModel):
 
 
 @auth_router.post("/verify-otp", response_model=AuthResponse)
-async def verify_otp(body: VerifyOTPRequest):
+async def verify_otp(body: VerifyOTPRequest, response: Response):
     """
     Verify Firebase ID token (phone auth) and create/login user.
 
     The client authenticates with Firebase Phone Auth, obtains an ID token,
     and sends it here. We verify it server-side and issue our own JWT.
+    Sets httpOnly auth cookie + CSRF cookie alongside the JSON response.
     """
     # Verify Firebase ID token
     phone = await _verify_firebase_phone_token(body.firebase_id_token, body.mobile)
@@ -127,7 +128,15 @@ async def verify_otp(body: VerifyOTPRequest):
 
     user = dict(row)
     token = create_token(user["id"], user["role"])
+    set_auth_cookies(response, token)
     return AuthResponse(token=token, user=user)
+
+
+@auth_router.post("/logout")
+async def logout(response: Response):
+    """Clear auth cookies."""
+    clear_auth_cookies(response)
+    return {"ok": True}
 
 
 @auth_router.post("/google-link")
@@ -383,3 +392,51 @@ async def _verify_google_from_firebase(id_token: str) -> dict:
         "email": payload.get("email"),
         "picture": payload.get("picture"),
     }
+
+
+# ── DPDP: data export & account deletion ─────────────────
+
+@auth_router.get("/users/me/data")
+async def export_my_data(user: dict = Depends(require_user)):
+    """Return all personal data held about the user (DPDP compliance)."""
+    pool = await get_pool()
+    uid = int(user["sub"])
+    u = await pool.fetchrow("SELECT * FROM users WHERE id = $1", uid)
+    bookmarks = await pool.fetch("SELECT * FROM bookmarks WHERE user_id = $1", uid)
+    votes = await pool.fetch("SELECT * FROM votes WHERE user_id = $1", uid)
+    api_keys = await pool.fetch(
+        "SELECT id, key_prefix, label, created_at, last_used_at, is_active FROM api_keys WHERE user_id = $1", uid
+    )
+    subscriptions = await pool.fetch("SELECT * FROM subscriptions WHERE user_id = $1", uid)
+    usage = await pool.fetch(
+        "SELECT date, endpoint_group, request_count FROM usage_summary WHERE user_id = $1 ORDER BY date DESC LIMIT 90", uid
+    )
+
+    def _row(r):
+        d = dict(r)
+        for k, v in d.items():
+            if hasattr(v, "isoformat"):
+                d[k] = v.isoformat()
+        return d
+
+    return {
+        "user": _row(u) if u else None,
+        "bookmarks": [_row(b) for b in bookmarks],
+        "votes": [_row(v) for v in votes],
+        "api_keys": [_row(k) for k in api_keys],
+        "subscriptions": [_row(s) for s in subscriptions],
+        "usage_last_90_days": [_row(r) for r in usage],
+    }
+
+
+@auth_router.delete("/users/me", status_code=204)
+async def delete_my_account(response: Response, user: dict = Depends(require_user)):
+    """Delete user account and all associated data (DPDP right to erasure)."""
+    pool = await get_pool()
+    uid = int(user["sub"])
+    # CASCADE handles bookmarks, votes; explicitly clean tables without CASCADE
+    await pool.execute("DELETE FROM usage_summary WHERE user_id = $1", uid)
+    await pool.execute("DELETE FROM api_keys WHERE user_id = $1", uid)
+    await pool.execute("DELETE FROM subscriptions WHERE user_id = $1", uid)
+    await pool.execute("DELETE FROM users WHERE id = $1", uid)
+    clear_auth_cookies(response)
