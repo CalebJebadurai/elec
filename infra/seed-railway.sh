@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 # ──────────────────────────────────────────────────────────
+# DEPRECATED: Seeds a single CSV file at a time.
+# For all states (AE + GE), use seed-railway-all.sh instead:
+#   ./infra/seed-railway-all.sh <DATABASE_URL>
+# ──────────────────────────────────────────────────────────
 # Seed Railway PostgreSQL with election CSV data
 #
 # Usage:
