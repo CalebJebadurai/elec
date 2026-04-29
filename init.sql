@@ -11,7 +11,7 @@ CREATE TABLE tcpd_ae (
     candidate TEXT NOT NULL,
     sex TEXT,
     party TEXT,
-    votes INTEGER NOT NULL,
+    votes INTEGER,
     age INTEGER,
     candidate_type TEXT,
     valid_votes INTEGER,
@@ -58,6 +58,14 @@ CREATE INDEX idx_tcpd_position ON tcpd_ae(position);
 CREATE INDEX idx_tcpd_year_position ON tcpd_ae(year, position);
 CREATE INDEX idx_tcpd_year_constituency ON tcpd_ae(year, constituency_no);
 
+-- Multi-state composite indexes
+CREATE INDEX idx_tcpd_state_year ON tcpd_ae(state_name, year);
+CREATE INDEX idx_tcpd_state_const_year ON tcpd_ae(state_name, constituency_name, year);
+CREATE INDEX idx_tcpd_state_year_pos ON tcpd_ae(state_name, year, position);
+CREATE INDEX idx_tcpd_election_type ON tcpd_ae(election_type);
+CREATE INDEX idx_tcpd_state_election_type ON tcpd_ae(state_name, election_type);
+CREATE INDEX idx_tcpd_state_poll ON tcpd_ae(state_name, poll_no);
+
 -- Enable trigram extension for fuzzy candidate search (ignore error if not available)
 DO $$ BEGIN
   CREATE EXTENSION IF NOT EXISTS pg_trgm;
@@ -83,7 +91,28 @@ COPY tcpd_ae (
     myneta_education, tcpd_prof_main, tcpd_prof_main_desc, tcpd_prof_second,
     tcpd_prof_second_desc, election_type
 )
-FROM '/data/tcpd_ae.csv'
+FROM '/data/tcpd_ae_all.csv'
+WITH (FORMAT csv, HEADER true, NULL '');
+
+-- ══════════════════════════════════════════════════════════
+-- Load GE (Lok Sabha) data — same table, different election_type
+-- GE CSV lacks Age and District_Name columns (will be NULL)
+-- GE column order: Poll_No before DelimID (opposite of AE)
+-- ══════════════════════════════════════════════════════════
+COPY tcpd_ae (
+    state_name, assembly_no, constituency_no, year, month,
+    poll_no, delim_id,
+    position, candidate, sex, party, votes,
+    candidate_type, valid_votes, electors, constituency_name, constituency_type,
+    sub_region, n_cand, turnout_percentage, vote_share_percentage,
+    deposit_lost, margin, margin_percentage, enop, pid,
+    party_type_tcpd, party_id, last_poll, contested, last_party,
+    last_party_id, last_constituency_name, same_constituency, same_party,
+    no_terms, turncoat, incumbent, recontest, myneta_education,
+    tcpd_prof_main, tcpd_prof_main_desc, tcpd_prof_second,
+    tcpd_prof_second_desc, election_type
+)
+FROM '/data/tcpd_ge_all.csv'
 WITH (FORMAT csv, HEADER true, NULL '');
 
 -- ══════════════════════════════════════════════════════════
@@ -139,14 +168,16 @@ CREATE INDEX idx_votes_bookmark ON votes(bookmark_id);
 -- ══════════════════════════════════════════════════════════
 DELETE FROM tcpd_ae a USING tcpd_ae b
 WHERE a.id > b.id
+  AND a.state_name = b.state_name
   AND a.year = b.year
   AND a.constituency_no = b.constituency_no
   AND a.candidate = b.candidate
-  AND a.poll_no IS NOT DISTINCT FROM b.poll_no;
+  AND COALESCE(a.poll_no, 0) = COALESCE(b.poll_no, 0)
+  AND COALESCE(a.election_type, '') = COALESCE(b.election_type, '');
 
--- Prevent future duplicates
+-- Prevent future duplicates (state-scoped, election_type-aware)
 CREATE UNIQUE INDEX idx_tcpd_unique_entry
-  ON tcpd_ae (year, constituency_no, candidate, COALESCE(poll_no, 0));
+  ON tcpd_ae (state_name, year, constituency_no, candidate, COALESCE(poll_no, 0), COALESCE(election_type, ''));
 
 -- ══════════════════════════════════════════════════════════
 -- Restricted application user (least-privilege)
