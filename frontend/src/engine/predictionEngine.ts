@@ -1,4 +1,14 @@
 import { normalizeParty } from '../constants';
+import type {
+  ConstituencyPredictionData,
+  PredictionParams,
+  PredictionResult,
+  PredictionParty,
+  NewPartyConfig,
+  AggregateResult,
+  AggregateParty,
+  FlippedConstituency,
+} from '../types';
 
 /**
  * Generate baseline predictions from latest actuals.
@@ -10,7 +20,10 @@ import { normalizeParty } from '../constants';
  *    vote_share, distributed proportionally to the runner-up.
  * 4. Recalculate absolute votes from adjusted shares.
  */
-export function generateBaseline(constituencies, params) {
+export function generateBaseline(
+  constituencies: ConstituencyPredictionData[],
+  params: PredictionParams
+): PredictionResult[] {
   const { antiIncumbencyPct, turnoutPct, growthFactor } = params;
   const antiInc = antiIncumbencyPct / 100;
   const turnout = turnoutPct / 100;
@@ -20,10 +33,11 @@ export function generateBaseline(constituencies, params) {
     const expectedValidVotes = Math.round(scaledElectors * turnout);
 
     // Build party vote shares from latest candidates
-    let parties = (c.candidates_latest || []).map((cand) => ({
+    const parties: PredictionParty[] = (c.candidates_latest || []).map((cand) => ({
       party: normalizeParty(cand.party),
-      originalParty: cand.party,
+      originalParty: cand.party || '',
       voteShare: (cand.vote_share_percentage || 0) / 100,
+      votes: 0,
       position: cand.position,
     }));
 
@@ -32,9 +46,7 @@ export function generateBaseline(constituencies, params) {
     // Apply anti-incumbency: latest winner loses share, runner-up gains
     const incumbentParty = normalizeParty(c.winner_party_latest);
     if (antiInc > 0 && incumbentParty) {
-      const incumbentIdx = parties.findIndex(
-        (p) => p.party === incumbentParty && p.position === 1
-      );
+      const incumbentIdx = parties.findIndex((p) => p.party === incumbentParty && p.position === 1);
       const runnerUpIdx = parties.findIndex((p) => p.position === 2);
 
       if (incumbentIdx >= 0) {
@@ -47,10 +59,7 @@ export function generateBaseline(constituencies, params) {
           const otherIdxs = parties
             .map((_, i) => i)
             .filter((i) => i !== incumbentIdx && i !== runnerUpIdx);
-          const perOther =
-            otherIdxs.length > 0
-              ? (loss * 0.3) / otherIdxs.length
-              : 0;
+          const perOther = otherIdxs.length > 0 ? (loss * 0.3) / otherIdxs.length : 0;
           otherIdxs.forEach((i) => {
             parties[i].voteShare += perOther;
           });
@@ -95,9 +104,7 @@ export function generateBaseline(constituencies, params) {
       predicted_margin: winner.votes - (runnerUp ? runnerUp.votes : 0),
       predicted_margin_pct:
         expectedValidVotes > 0
-          ? ((winner.votes - (runnerUp ? runnerUp.votes : 0)) /
-              expectedValidVotes) *
-            100
+          ? ((winner.votes - (runnerUp ? runnerUp.votes : 0)) / expectedValidVotes) * 100
           : 0,
       flipped: winner.party !== normalizeParty(c.winner_party_latest),
       parties,
@@ -114,20 +121,16 @@ export function generateBaseline(constituencies, params) {
  *
  * This ensures vote conservation: total subtracted = new party votes.
  */
-export function applyNewParty(baselineResults, config) {
-  const {
-    name,
-    color,
-    statewideVoteShare,
-    affinityWeights,
-    constituencyOverrides,
-  } = config;
+export function applyNewParty(
+  baselineResults: PredictionResult[],
+  config: NewPartyConfig
+): PredictionResult[] {
+  const { name, statewideVoteShare, affinityWeights, constituencyOverrides } = config;
 
   if (!name || statewideVoteShare <= 0) return baselineResults;
 
   return baselineResults.map((r) => {
-    const overridePct =
-      constituencyOverrides[r.constituency_name] ?? statewideVoteShare;
+    const overridePct = constituencyOverrides[r.constituency_name] ?? statewideVoteShare;
     const newPartyShare = overridePct / 100;
 
     if (newPartyShare <= 0) return r;
@@ -136,10 +139,10 @@ export function applyNewParty(baselineResults, config) {
     const newPartyVotes = Math.round(validVotes * newPartyShare);
 
     // Clone parties
-    let parties = r.parties.map((p) => ({ ...p }));
+    const parties: PredictionParty[] = r.parties.map((p) => ({ ...p }));
 
     // Compute weighted denominator
-    const getWeight = (party) => {
+    const getWeight = (party: string): number => {
       if (affinityWeights[party] !== undefined) return affinityWeights[party];
       return affinityWeights['Others'] || 0.1;
     };
@@ -189,9 +192,7 @@ export function applyNewParty(baselineResults, config) {
       predicted_margin: winner.votes - (runnerUp ? runnerUp.votes : 0),
       predicted_margin_pct:
         totalVotesAfter > 0
-          ? ((winner.votes - (runnerUp ? runnerUp.votes : 0)) /
-              totalVotesAfter) *
-            100
+          ? ((winner.votes - (runnerUp ? runnerUp.votes : 0)) / totalVotesAfter) * 100
           : 0,
       flipped: winner.party !== r.winner_party_latest,
       parties,
@@ -204,11 +205,10 @@ export function applyNewParty(baselineResults, config) {
 /**
  * Aggregate per-constituency results into summary stats.
  */
-export function aggregateResults(predictions) {
-  const partySeats = {};
-  const partyVoteShares = {};
-  const partyVoteCounts = {};
-  const flipped = [];
+export function aggregateResults(predictions: PredictionResult[]): AggregateResult {
+  const partySeats: Record<string, number> = {};
+  const partyVoteShares: Record<string, { sum: number; count: number; totalVotes: number }> = {};
+  const flipped: FlippedConstituency[] = [];
   let totalSeats = 0;
 
   predictions.forEach((r) => {
@@ -228,7 +228,7 @@ export function aggregateResults(predictions) {
       partyVoteShares[p.party].totalVotes += p.votes;
     });
 
-    if (r.flipped) {
+    if (r.flipped && r.predicted_winner) {
       flipped.push({
         constituency: r.constituency_name,
         from: r.winner_party_latest,
@@ -244,10 +244,9 @@ export function aggregateResults(predictions) {
     .map((party) => ({
       party,
       seats: partySeats[party] || 0,
-      avgVoteShare:
-        partyVoteShares[party]
-          ? partyVoteShares[party].sum / partyVoteShares[party].count
-          : 0,
+      avgVoteShare: partyVoteShares[party]
+        ? partyVoteShares[party].sum / partyVoteShares[party].count
+        : 0,
       totalVotes: partyVoteShares[party]?.totalVotes || 0,
     }))
     .sort((a, b) => b.seats - a.seats || b.avgVoteShare - a.avgVoteShare);
@@ -260,7 +259,7 @@ export function aggregateResults(predictions) {
   };
 }
 
-function emptyResult(c) {
+function emptyResult(c: ConstituencyPredictionData): PredictionResult {
   return {
     constituency_name: c.constituency_name,
     constituency_no: c.constituency_no,
