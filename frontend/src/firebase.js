@@ -1,5 +1,12 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, RecaptchaVerifier, signInWithPhoneNumber, initializeRecaptchaConfig, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import {
+  getAuth,
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
+  initializeRecaptchaConfig,
+  GoogleAuthProvider,
+  signInWithPopup,
+} from 'firebase/auth';
 
 const googleProvider = new GoogleAuthProvider();
 googleProvider.addScope('https://www.googleapis.com/auth/user.birthday.read');
@@ -22,4 +29,12 @@ initializeRecaptchaConfig(auth).catch(() => {
   // Enterprise not configured — v2 fallback will be used
 });
 
-export { app, auth, RecaptchaVerifier, signInWithPhoneNumber, googleProvider, signInWithPopup, GoogleAuthProvider };
+export {
+  app,
+  auth,
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
+  googleProvider,
+  signInWithPopup,
+  GoogleAuthProvider,
+};

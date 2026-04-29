@@ -1,17 +1,28 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { api } from '../api';
+import type { User, UserProfile } from '../types';
 
-const AuthContext = createContext(null);
+interface AuthContextValue {
+  user: User | null;
+  loading: boolean;
+  login: (mobile: string, firebaseIdToken: string) => Promise<User>;
+  logout: () => void;
+  linkGoogle: (googleIdToken: string, googleAccessToken: string) => Promise<void>;
+  updateProfile: (data: UserProfile) => Promise<void>;
+}
 
-export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
+const AuthContext = createContext<AuthContextValue | null>(null);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Check for existing session on mount
   useEffect(() => {
     const token = api.getToken();
     if (token) {
-      api.getMe()
+      api
+        .getMe()
         .then(setUser)
         .catch(() => {
           api.setToken(null);
@@ -22,14 +33,14 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  const login = useCallback(async (mobile, firebaseIdToken) => {
+  const login = useCallback(async (mobile: string, firebaseIdToken: string) => {
     const result = await api.verifyOtp(mobile, firebaseIdToken);
     api.setToken(result.token);
     setUser(result.user);
     return result.user;
   }, []);
 
-  const linkGoogle = useCallback(async (googleIdToken, googleAccessToken) => {
+  const linkGoogle = useCallback(async (googleIdToken: string, googleAccessToken: string) => {
     await api.linkGoogle(googleIdToken, googleAccessToken);
     const updated = await api.getMe();
     setUser(updated);
@@ -40,7 +51,7 @@ export function AuthProvider({ children }) {
     setUser(null);
   }, []);
 
-  const updateProfile = useCallback(async (data) => {
+  const updateProfile = useCallback(async (data: UserProfile) => {
     await api.updateMe(data);
     const updated = await api.getMe();
     setUser(updated);
@@ -53,7 +64,8 @@ export function AuthProvider({ children }) {
   );
 }
 
-export function useAuth() {
+// eslint-disable-next-line react-refresh/only-export-components
+export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error('useAuth must be inside AuthProvider');
   return ctx;
