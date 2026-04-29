@@ -1,16 +1,30 @@
-# React + Vite
+# Election Analytics — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+> **Package Manager: [Bun](https://bun.sh/)** — npm is not supported.
 
-Currently, two official plugins are available:
+## Getting Started
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```sh
+bun install
+bun run dev
+```
 
-## React Compiler
+## Scripts
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+| Command                 | Description               |
+| ----------------------- | ------------------------- |
+| `bun run dev`           | Start Vite dev server     |
+| `bun run build`         | Production build          |
+| `bun run test`          | Run tests (watch mode)    |
+| `bun run test:coverage` | Run tests with coverage   |
+| `bun run lint`          | ESLint                    |
+| `bun run format`        | Format code with Prettier |
+| `bun run format:check`  | Check formatting (CI)     |
 
-## Expanding the ESLint configuration
+## Stack
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- React 19 + Vite 8
+- TypeScript (incremental — `allowJs: true`, `checkJs: false`)
+- Vitest + Testing Library
+- ESLint 9 (flat config) + Prettier
+- Husky + lint-staged pre-commit hooks
