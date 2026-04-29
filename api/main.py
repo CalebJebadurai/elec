@@ -592,9 +592,10 @@ def _verify_admin(request: Request):
 
 
 @app.post("/admin/seed", tags=["infra"])
-async def seed_data(request: Request):
+async def seed_data(request: Request, append: bool = False):
     """Seed the database with CSV data sent via POST body.
-    Only works when the tcpd_ae table is empty (safety check).
+    By default only works when the table is empty (safety check).
+    Pass ?append=true to add data to an existing table.
     Expects: CSV text in request body with Content-Type text/csv.
     """
     import csv
@@ -603,6 +604,14 @@ async def seed_data(request: Request):
     _verify_admin(request)
 
     pool = await get_pool()
+
+    if not append:
+        existing = await pool.fetchval("SELECT COUNT(*) FROM tcpd_ae")
+        if existing > 0:
+            return JSONResponse(
+                status_code=409,
+                content={"detail": f"Table already has {existing} rows. Truncate first or use ?append=true.", "rows": existing},
+            )
 
     body = await request.body()
     text = body.decode("utf-8")
