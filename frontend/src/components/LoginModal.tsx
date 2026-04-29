@@ -8,6 +8,7 @@ import {
   signInWithPopup,
   GoogleAuthProvider,
 } from '../firebase';
+import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogClose } from './ui/dialog';
 
 const COUNTRY_CODES = [
   { flag: '🇮🇳', code: '+91', short: 'IN' },
@@ -39,20 +40,27 @@ const COUNTRY_CODES = [
   { flag: '🇳🇿', code: '+64', short: 'NZ' },
 ];
 
-export default function LoginModal({ onClose }) {
+interface LoginModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export default function LoginModal({ open, onOpenChange }: LoginModalProps) {
   const { login, linkGoogle } = useAuth();
   const [mobile, setMobile] = useState('');
   const [countryCode, setCountryCode] = useState('+91');
-  const [step, setStep] = useState('phone'); // phone | otp | google | done
+  const [step, setStep] = useState<'phone' | 'otp' | 'google' | 'done'>('phone');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [consent, setConsent] = useState(false);
-  const recaptchaRef = useRef(null);
-  const confirmationResultRef = useRef(null);
-  const otpRefs = useRef([]);
+  const recaptchaRef = useRef<ReturnType<typeof RecaptchaVerifier> | null>(null);
+  const confirmationResultRef = useRef<{
+    confirm: (code: string) => Promise<{ user: { getIdToken: () => Promise<string> } }>;
+  } | null>(null);
+  const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  const handleOtpChange = useCallback((index, value) => {
+  const handleOtpChange = useCallback((index: number, value: string) => {
     if (!/^\d?$/.test(value)) return;
     setOtp((prev) => {
       const next = [...prev];
@@ -65,7 +73,7 @@ export default function LoginModal({ onClose }) {
   }, []);
 
   const handleOtpKeyDown = useCallback(
-    (index, e) => {
+    (index: number, e: React.KeyboardEvent) => {
       if (e.key === 'Backspace' && !otp[index] && index > 0) {
         otpRefs.current[index - 1]?.focus();
       }
@@ -73,7 +81,7 @@ export default function LoginModal({ onClose }) {
     [otp]
   );
 
-  const handleOtpPaste = useCallback((e) => {
+  const handleOtpPaste = useCallback((e: React.ClipboardEvent) => {
     e.preventDefault();
     const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
     if (!pasted) return;
@@ -90,7 +98,6 @@ export default function LoginModal({ onClose }) {
   }, []);
 
   function getOrCreateRecaptcha() {
-    // Clear any previous instance
     if (recaptchaRef.current) {
       try {
         recaptchaRef.current.clear();
@@ -109,7 +116,7 @@ export default function LoginModal({ onClose }) {
     return recaptchaRef.current;
   }
 
-  async function handleSendOtp(e) {
+  async function handleSendOtp(e: React.FormEvent) {
     e.preventDefault();
     setError('');
     setLoading(true);
@@ -129,32 +136,31 @@ export default function LoginModal({ onClose }) {
       const result = await signInWithPhoneNumber(auth, phoneNumber, verifier);
       confirmationResultRef.current = result;
       setStep('otp');
-    } catch (err) {
-      setError(err.message || 'Failed to send OTP');
+    } catch (err: unknown) {
+      setError((err as Error).message || 'Failed to send OTP');
     } finally {
       setLoading(false);
     }
   }
 
-  async function handleVerifyOtp(e) {
+  async function handleVerifyOtp(e: React.FormEvent) {
     e.preventDefault();
     setError('');
     setLoading(true);
 
     try {
       const otpCode = otp.join('');
-      const result = await confirmationResultRef.current.confirm(otpCode);
+      const result = await confirmationResultRef.current!.confirm(otpCode);
       const idToken = await result.user.getIdToken();
       const fullMobile = `${countryCode}${mobile.replace(/[\s\-()]/g, '')}`;
       const user = await login(fullMobile, idToken);
-      // If Google is already linked, we're done
       if (user.google_email) {
-        onClose();
+        onOpenChange(false);
       } else {
         setStep('google');
       }
-    } catch (err) {
-      setError(err.message || 'Invalid OTP');
+    } catch (err: unknown) {
+      setError((err as Error).message || 'Invalid OTP');
     } finally {
       setLoading(false);
     }
@@ -169,12 +175,13 @@ export default function LoginModal({ onClose }) {
       const idToken = await result.user.getIdToken();
       const accessToken = credential?.accessToken || null;
       await linkGoogle(idToken, accessToken);
-      onClose();
-    } catch (err) {
-      if (err.message?.includes('popup-closed')) {
+      onOpenChange(false);
+    } catch (err: unknown) {
+      const msg = (err as Error).message;
+      if (msg?.includes('popup-closed')) {
         setError('Google sign-in was cancelled. Please try again.');
       } else {
-        setError(err.message || 'Failed to link Google account');
+        setError(msg || 'Failed to link Google account');
       }
     } finally {
       setLoading(false);
@@ -182,28 +189,49 @@ export default function LoginModal({ onClose }) {
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <button className="modal-close" onClick={onClose}>
-          ×
-        </button>
-        <h2>Sign In</h2>
-        <p className="modal-subtitle">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent open={open}>
+        <DialogClose className="absolute right-4 top-4 rounded-sm text-neutral-400 opacity-70 transition-opacity hover:opacity-100 focus-visible:outline-2 focus-visible:outline-primary-400 focus-visible:outline-offset-2">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+          <span className="sr-only">Close</span>
+        </DialogClose>
+
+        <DialogTitle className="text-xl font-semibold text-white mb-1">Sign In</DialogTitle>
+        <DialogDescription className="text-sm text-neutral-400 mb-4">
           {step === 'google'
             ? 'Link your Google account to continue'
             : 'Sign in with your mobile number to save predictions'}
-        </p>
+        </DialogDescription>
 
-        {error && <div className="modal-error">{error}</div>}
+        {error && (
+          <div className="mb-4 rounded-lg bg-error-muted/50 border border-error/30 px-3 py-2 text-sm text-error">
+            {error}
+          </div>
+        )}
 
         {step === 'phone' && (
           <form onSubmit={handleSendOtp}>
-            <label className="modal-label">Mobile Number</label>
-            <div className="phone-input-row">
+            <label className="block text-sm font-medium text-neutral-300 mb-1.5">
+              Mobile Number
+            </label>
+            <div className="flex gap-2 mb-3">
               <select
-                className="country-select"
+                className="w-[110px] rounded-md border border-neutral-800 bg-[#1e1e1e] px-2 py-2 text-sm text-neutral-200 focus:outline-2 focus:outline-primary-400"
                 value={countryCode}
                 onChange={(e) => setCountryCode(e.target.value)}
+                aria-label="Country code"
               >
                 {COUNTRY_CODES.map((c) => (
                   <option key={c.short} value={c.code}>
@@ -213,7 +241,7 @@ export default function LoginModal({ onClose }) {
               </select>
               <input
                 type="tel"
-                className="modal-input phone-number-input"
+                className="flex-1 rounded-md border border-neutral-800 bg-[#1e1e1e] px-3 py-2 text-sm text-neutral-200 placeholder:text-neutral-500 focus:outline-2 focus:outline-primary-400"
                 placeholder="98765 43210"
                 value={mobile}
                 onChange={(e) => setMobile(e.target.value)}
@@ -222,34 +250,39 @@ export default function LoginModal({ onClose }) {
               />
             </div>
             <div id="recaptcha-container" />
-            <label
-              style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: 8,
-                fontSize: 12,
-                color: 'var(--text-muted)',
-                margin: '8px 0',
-              }}
-            >
+            <label className="flex items-start gap-2 text-xs text-neutral-400 my-2">
               <input
                 type="checkbox"
                 checked={consent}
                 onChange={(e) => setConsent(e.target.checked)}
-                style={{ marginTop: 2 }}
+                className="mt-0.5"
               />
               <span>
                 I agree to the{' '}
-                <a href="/privacy" target="_blank" rel="noopener noreferrer">
+                <a
+                  href="/privacy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary-400 hover:underline"
+                >
                   Privacy Policy
                 </a>{' '}
                 and{' '}
-                <a href="/terms" target="_blank" rel="noopener noreferrer">
+                <a
+                  href="/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary-400 hover:underline"
+                >
                   Terms of Service
                 </a>
               </span>
             </label>
-            <button type="submit" className="modal-btn" disabled={loading || !consent}>
+            <button
+              type="submit"
+              className="w-full mt-2 rounded-lg bg-primary-400 px-4 py-2.5 text-sm font-semibold text-black transition-colors hover:bg-primary-300 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]"
+              disabled={loading || !consent}
+            >
               {loading ? 'Sending...' : 'Send OTP'}
             </button>
           </form>
@@ -257,18 +290,20 @@ export default function LoginModal({ onClose }) {
 
         {step === 'otp' && (
           <form onSubmit={handleVerifyOtp}>
-            <label className="modal-label">
+            <label className="block text-sm font-medium text-neutral-300 mb-2">
               Enter OTP sent to {countryCode} {mobile}
             </label>
-            <div className="otp-boxes" onPaste={handleOtpPaste}>
+            <div className="flex justify-center gap-2 mb-4" onPaste={handleOtpPaste}>
               {otp.map((digit, i) => (
                 <input
                   key={i}
-                  ref={(el) => (otpRefs.current[i] = el)}
+                  ref={(el) => {
+                    otpRefs.current[i] = el;
+                  }}
                   type="text"
                   inputMode="numeric"
                   autoComplete={i === 0 ? 'one-time-code' : 'off'}
-                  className="otp-box"
+                  className="w-10 h-12 rounded-lg border border-neutral-800 bg-[#1e1e1e] text-center text-lg text-white focus:outline-2 focus:outline-primary-400"
                   maxLength={1}
                   value={digit}
                   onChange={(e) => handleOtpChange(i, e.target.value)}
@@ -279,7 +314,7 @@ export default function LoginModal({ onClose }) {
             </div>
             <button
               type="submit"
-              className="modal-btn"
+              className="w-full rounded-lg bg-primary-400 px-4 py-2.5 text-sm font-semibold text-black transition-colors hover:bg-primary-300 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]"
               disabled={loading || otp.join('').length < 6}
             >
               {loading ? 'Verifying...' : 'Verify OTP'}
@@ -289,23 +324,27 @@ export default function LoginModal({ onClose }) {
 
         {step === 'google' && (
           <div>
-            <p className="modal-label">
+            <p className="text-sm text-neutral-300 mb-4">
               Phone verified! Link your Google account for a richer experience.
             </p>
             <button
               type="button"
-              className="modal-btn modal-btn-google"
+              className="w-full rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-gray-800 transition-colors hover:bg-gray-100 disabled:opacity-50 min-h-[44px] mb-2"
               onClick={handleGoogleLink}
               disabled={loading}
             >
               {loading ? 'Linking...' : 'Sign in with Google'}
             </button>
-            <button type="button" className="modal-btn modal-btn-skip" onClick={onClose}>
+            <button
+              type="button"
+              className="w-full rounded-lg border border-neutral-800 bg-transparent px-4 py-2.5 text-sm text-neutral-400 transition-colors hover:bg-neutral-800 min-h-[44px]"
+              onClick={() => onOpenChange(false)}
+            >
               Skip for now
             </button>
           </div>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

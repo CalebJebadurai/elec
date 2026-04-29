@@ -249,10 +249,10 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            "script-src 'self' https://apis.google.com https://*.firebaseio.com https://*.gstatic.com; "
+            "script-src 'self' https://apis.google.com https://*.firebaseio.com https://*.gstatic.com https://plausible.io; "
             "style-src 'self' 'unsafe-inline'; "
             "img-src 'self' data: https://*.googleusercontent.com; "
-            "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://identitytoolkit.googleapis.com; "
+            "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://identitytoolkit.googleapis.com https://plausible.io; "
             "frame-src https://accounts.google.com https://*.firebaseapp.com; "
             "object-src 'none'; "
             "base-uri 'self'"

@@ -1,6 +1,7 @@
 ---
 description: "Use when: refining a rough or naive user prompt into a structured, technically precise prompt for strategic analysis. Transforms vague ideas into well-scoped, unambiguous technical prose prompts with clear objectives, constraints, and success criteria. Use as a subagent of the Architect agent as a Phase 0 preprocessing step."
-tools: [read, search, edit, new]
+tools: [read, search, edit, new, agent]
+agents: [ui-ux]
 model: ['Claude Sonnet 4.5 (copilot)', 'Claude Opus 4 (copilot)']
 user-invocable: false
 disable-model-invocation: false
@@ -39,6 +40,18 @@ Search the codebase to:
 - Determine the current state of the system in the affected area
 - Identify related systems that may be impacted
 - Find existing patterns and conventions that constrain the solution space
+
+### Step 2b — Frontend Visual Grounding (Conditional)
+
+Invoke the **ui-ux** subagent **only when all three conditions are met**:
+
+1. The prompt's core action targets something the user can see — a page layout, component appearance, interaction flow, loading behavior, or frontend performance problem.
+2. Real browser evidence (screenshots, Lighthouse scores, console errors) would materially change how you write the Current State or Success Criteria sections — i.e., without it you would be guessing at metrics or visual quality.
+3. A running frontend is available to inspect (the user has mentioned a URL, or the dev server is known to be running).
+
+**Skip ui-ux when** the prompt is about backend logic, data models, API design, infrastructure, database schema, build tooling, or any change where the frontend is not the subject of the work — even if the change will eventually surface in the UI. Code-level frontend changes (refactoring components, changing state management, adding a new route) do not require visual inspection unless the prompt specifically asks about how the result looks or performs.
+
+When you do invoke ui-ux, pass a specific page URL and a focused question (e.g., "capture desktop and mobile screenshots of the results page and run a Lighthouse performance audit"). Do not ask for a full-spectrum audit when you only need a screenshot, and vice versa.
 
 ### Step 3 — Ambiguity Resolution
 

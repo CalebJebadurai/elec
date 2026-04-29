@@ -1,6 +1,7 @@
 ---
 description: "Use when: deep codebase analysis is needed before planning. Researches architecture, patterns, constraints, dependencies, and industry-standard approaches for a given problem domain. Returns structured findings as prose. Use as a subagent of the Architect agent for thorough technical analysis."
-tools: [read, search, web, fetch, edit, new]
+tools: [read, search, web, fetch, edit, new, agent]
+agents: [ui-ux]
 model: ['Claude Opus 4 (copilot)']
 user-invocable: false
 disable-model-invocation: false
@@ -53,6 +54,16 @@ Authentication, authorization, input validation, data exposure, OWASP-relevant c
 
 ### Performance Findings
 Observed query patterns, N+1 risks, serialization costs, rendering bottlenecks, caching opportunities, and any performance-sensitive paths in the affected area.
+
+### Frontend Visual & UX Findings (Conditional)
+Invoke the **ui-ux** subagent and populate this section **only when both conditions are true**:
+
+1. The research topic directly concerns what users see or experience — page layout, component rendering, interaction design, frontend performance, or accessibility compliance.
+2. Browser-based evidence (screenshots, Lighthouse metrics, console errors) would add factual grounding that cannot be obtained from reading source code alone.
+
+**Skip this section entirely when** the topic is backend logic, API design, data modeling, infrastructure, DevOps, database queries, or any area where the frontend is not the subject under research. A change that will eventually affect the UI does not qualify — only research whose primary focus is the visual or interactive frontend warrants invoking ui-ux.
+
+When invoking ui-ux, provide a specific page URL and scope the request to what you actually need for your report. Request only the inspection categories relevant to your research — do not request a full audit when you only need screenshots, and do not request performance traces when you only need accessibility data.
 
 ## Output Delivery
 

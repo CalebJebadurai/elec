@@ -2,10 +2,12 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import * as Sentry from '@sentry/react';
-import './index.css';
+import './app.css';
+import './tables.css';
 import App from './App';
 import { AuthProvider } from './contexts/AuthContext';
 import { StateProvider } from './contexts/StateContext';
+import { initVitals } from './lib/vitals';
 
 const sentryDsn = import.meta.env.VITE_SENTRY_DSN;
 if (sentryDsn) {
@@ -28,3 +30,5 @@ createRoot(document.getElementById('root')).render(
     </BrowserRouter>
   </StrictMode>
 );
+
+initVitals();

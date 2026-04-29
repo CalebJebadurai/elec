@@ -81,65 +81,141 @@ export default function PredictionConstituencyTable({
   const flippedCount = (predictions || []).filter((r) => r.flipped).length;
 
   return (
-    <div className="panel">
-      <h3>Constituency-Level Predictions</h3>
+    <div className="mb-8">
+      <h3 className="text-base font-semibold text-primary-400 mb-3">
+        Constituency-Level Predictions
+      </h3>
 
-      <div className="filters">
+      <div className="flex flex-col gap-2 mb-3 md:flex-row md:flex-wrap md:items-center">
         <input
           type="text"
           placeholder="Search constituency or district..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="search-input"
+          className="w-full md:w-64 bg-neutral-900 border border-neutral-800 text-neutral-200 rounded-md px-3 py-2 text-sm placeholder:text-neutral-500 focus:outline-none focus:border-primary-400"
         />
-        <select value={regionFilter} onChange={(e) => setRegionFilter(e.target.value)}>
+        <select
+          value={regionFilter}
+          onChange={(e) => setRegionFilter(e.target.value)}
+          aria-label="Filter by region"
+          className="bg-neutral-900 border border-neutral-800 text-neutral-200 rounded-md px-3 py-2 text-sm cursor-pointer"
+        >
           {subRegions.map((r) => (
             <option key={r} value={r}>
               {r === 'ALL' ? 'All Regions' : r}
             </option>
           ))}
         </select>
-        <label className="filter-checkbox">
+        <label className="flex items-center gap-2 text-sm text-neutral-300 cursor-pointer">
           <input
             type="checkbox"
             checked={showFlippedOnly}
             onChange={(e) => setShowFlippedOnly(e.target.checked)}
+            className="cursor-pointer"
           />
           Flipped only ({flippedCount})
         </label>
       </div>
 
-      <div className="count-badge">{filtered.length} constituencies</div>
+      <div className="inline-block bg-neutral-900 text-neutral-300 text-xs px-3 py-1 rounded-full mb-3">
+        {filtered.length} constituencies
+      </div>
 
-      <div className="const-grid-wrap" style={{ maxHeight: '600px', overflowY: 'auto' }}>
+      {/* Mobile card view */}
+      <div className="block md:hidden space-y-2">
+        {filtered.map((r) => {
+          const marginDelta = (r.predicted_margin_pct || 0) - (r.margin_percentage_latest || 0);
+          return (
+            <button
+              key={r.constituency_name}
+              onClick={() => onOverride && onOverride(r.constituency_name)}
+              className={`w-full text-left bg-neutral-900 border rounded-xl p-4 transition-colors cursor-pointer ${r.flipped ? 'border-warning/50' : 'border-neutral-800 hover:border-primary-400/50'}`}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="font-medium text-sm text-white truncate">
+                    {r.constituency_name}
+                  </div>
+                  <div className="text-xs text-neutral-400 mt-0.5">{r.district_name}</div>
+                </div>
+                {r.flipped && (
+                  <span
+                    className="text-xs bg-warning/20 text-warning px-2 py-0.5 rounded shrink-0"
+                    title={`${r.winner_party_latest} → ${r.predicted_winner}`}
+                  >
+                    ⇄ Flip
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-3 mt-2 text-xs">
+                <span style={{ color: partyColor(normalizeParty(r.winner_party_latest)) }}>
+                  {normalizeParty(r.winner_party_latest)}{' '}
+                  {(r.margin_percentage_latest || 0).toFixed(1)}%
+                </span>
+                <span className="text-neutral-500">→</span>
+                <span style={{ color: partyColor(r.predicted_winner) || '#9b59b6' }}>
+                  {r.predicted_winner} {(r.predicted_margin_pct || 0).toFixed(1)}%
+                </span>
+                <span
+                  className={`font-mono ${marginDelta > 0 ? 'text-success' : marginDelta < 0 ? 'text-error' : 'text-neutral-500'}`}
+                >
+                  {marginDelta > 0 ? '+' : ''}
+                  {marginDelta.toFixed(1)}%
+                </span>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Desktop table view */}
+      <div className="hidden md:block overflow-x-auto max-h-[600px] overflow-y-auto">
         <table className="const-grid">
+          <caption className="sr-only">Constituency-level prediction results</caption>
           <thead>
             <tr>
               <th
+                scope="col"
                 className="sticky-col"
                 onClick={() => handleSort('name')}
                 style={{ cursor: 'pointer' }}
               >
                 Constituency{sortIcon('name')}
               </th>
-              <th>District</th>
-              <th>{latestYr} Winner</th>
-              <th onClick={() => handleSort('marginLatest')} style={{ cursor: 'pointer' }}>
+              <th scope="col">District</th>
+              <th scope="col">{latestYr} Winner</th>
+              <th
+                scope="col"
+                onClick={() => handleSort('marginLatest')}
+                style={{ cursor: 'pointer' }}
+              >
                 {latestYr} Margin{sortIcon('marginLatest')}
               </th>
-              <th>{nextYr} Predicted</th>
-              <th onClick={() => handleSort('marginNext')} style={{ cursor: 'pointer' }}>
+              <th scope="col">{nextYr} Predicted</th>
+              <th
+                scope="col"
+                onClick={() => handleSort('marginNext')}
+                style={{ cursor: 'pointer' }}
+              >
                 {nextYr} Margin{sortIcon('marginNext')}
               </th>
-              <th onClick={() => handleSort('marginChange')} style={{ cursor: 'pointer' }}>
+              <th
+                scope="col"
+                onClick={() => handleSort('marginChange')}
+                style={{ cursor: 'pointer' }}
+              >
                 Change{sortIcon('marginChange')}
               </th>
               {predictions?.some((r) => r.new_party_share > 0) && (
-                <th onClick={() => handleSort('newParty')} style={{ cursor: 'pointer' }}>
+                <th
+                  scope="col"
+                  onClick={() => handleSort('newParty')}
+                  style={{ cursor: 'pointer' }}
+                >
                   New Party %{sortIcon('newParty')}
                 </th>
               )}
-              <th>Flip</th>
+              <th scope="col">Flip</th>
             </tr>
           </thead>
           <tbody>

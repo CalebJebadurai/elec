@@ -1,7 +1,7 @@
 ---
 description: "Use when: planning, analyzing, or designing implementation strategies. Produces detailed prose-based analysis documents with multiple approaches, criticism, recommended approach, phased implementation plan, test plan, and execution guidance. No code output — only strategic prose documents. Use for feature planning, migration strategy, architecture decisions, refactoring plans, or any task that needs a thorough written plan before coding begins."
-tools: [read, search, edit, new, web, fetch, agent/runSubagent, todo]
-agents: [Explore, analyst, critic, prompt-engineer, planner, implementer, verifier]
+tools: [vscode/getProjectSetupInfo, vscode/installExtension, vscode/newWorkspace, vscode/runCommand, read/getNotebookSummary, read/problems, read/readFile, read/viewImage, read/readNotebookCellOutput, read/terminalSelection, read/terminalLastCommand, agent/runSubagent, edit/createDirectory, edit/createFile, edit/createJupyterNotebook, edit/editFiles, edit/editNotebook, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/textSearch, search/usages, web/fetch, web/githubRepo, todo]
+agents: [Explore, analyst, critic, prompt-engineer, planner, implementer, verifier, ui-ux]
 model: ['Claude Opus 4 (copilot)']
 ---
 

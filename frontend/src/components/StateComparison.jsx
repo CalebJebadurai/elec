@@ -65,11 +65,15 @@ export default function StateComparison({ stateData, electionType, onElectionTyp
   }, [data]);
 
   return (
-    <div className="state-comparison">
-      <div className="national-controls">
-        <div className="control-group">
-          <label>State A</label>
-          <select value={stateA} onChange={(e) => setStateA(e.target.value)}>
+    <div className="mb-8">
+      <div className="flex flex-col gap-3 mb-4 md:flex-row md:items-end">
+        <div>
+          <label className="block text-xs text-neutral-400 mb-1">State A</label>
+          <select
+            value={stateA}
+            onChange={(e) => setStateA(e.target.value)}
+            className="bg-neutral-900 border border-neutral-800 text-neutral-200 rounded-md px-3 py-2 text-sm cursor-pointer"
+          >
             {stateList.map((s) => (
               <option key={s.state_name} value={s.state_name}>
                 {s.display_name || s.state_name.replace(/_/g, ' ')}
@@ -77,9 +81,13 @@ export default function StateComparison({ stateData, electionType, onElectionTyp
             ))}
           </select>
         </div>
-        <div className="control-group">
-          <label>State B</label>
-          <select value={stateB} onChange={(e) => setStateB(e.target.value)}>
+        <div>
+          <label className="block text-xs text-neutral-400 mb-1">State B</label>
+          <select
+            value={stateB}
+            onChange={(e) => setStateB(e.target.value)}
+            className="bg-neutral-900 border border-neutral-800 text-neutral-200 rounded-md px-3 py-2 text-sm cursor-pointer"
+          >
             {stateList.map((s) => (
               <option key={s.state_name} value={s.state_name}>
                 {s.display_name || s.state_name.replace(/_/g, ' ')}
@@ -87,36 +95,51 @@ export default function StateComparison({ stateData, electionType, onElectionTyp
             ))}
           </select>
         </div>
-        <div className="control-group">
-          <label>Election Type</label>
-          <select value={electionType} onChange={(e) => onElectionTypeChange(e.target.value)}>
+        <div>
+          <label className="block text-xs text-neutral-400 mb-1">Election Type</label>
+          <select
+            value={electionType}
+            onChange={(e) => onElectionTypeChange(e.target.value)}
+            className="bg-neutral-900 border border-neutral-800 text-neutral-200 rounded-md px-3 py-2 text-sm cursor-pointer"
+          >
             <option value="AE">Assembly (AE)</option>
             <option value="GE">Lok Sabha (GE)</option>
           </select>
         </div>
       </div>
 
-      {stateA === stateB && <p className="muted">Select two different states to compare.</p>}
+      {stateA === stateB && (
+        <p className="text-neutral-400 text-sm">Select two different states to compare.</p>
+      )}
 
-      {loading && <div className="loading-spinner">Loading comparison…</div>}
-      {error && <div className="error-message">{error}</div>}
+      {loading && (
+        <div className="py-8 space-y-4">
+          <div className="grid grid-cols-3 gap-2">
+            {Array.from({ length: 12 }, (_, i) => (
+              <div key={i} className="animate-pulse bg-neutral-800 rounded h-4" />
+            ))}
+          </div>
+          <div className="animate-pulse bg-neutral-800 rounded-lg h-[40vh]" />
+        </div>
+      )}
+      {error && <div className="text-center py-4 text-error">{error}</div>}
 
       {data && !loading && (
         <>
           {/* Key Stats side-by-side */}
-          <div className="compare-stats">
+          <div className="grid grid-cols-3 gap-2 mb-4">
             {[
               { label: 'Constituencies', key: 'total_constituencies' },
               { label: 'Latest Year', key: 'year_max' },
               { label: 'Avg Turnout', key: 'avg_turnout', suffix: '%' },
               { label: 'Election Years', key: 'total_years' },
             ].map(({ label, key, suffix = '' }) => (
-              <div className="compare-row" key={key}>
-                <span className="compare-val-a">
+              <div className="contents" key={key}>
+                <span className="text-right text-sm text-primary-300 font-mono">
                   {data.state_a?.[key] != null ? `${data.state_a[key]}${suffix}` : '—'}
                 </span>
-                <span className="compare-label">{label}</span>
-                <span className="compare-val-b">
+                <span className="text-center text-xs text-neutral-400 self-center">{label}</span>
+                <span className="text-left text-sm text-primary-300 font-mono">
                   {data.state_b?.[key] != null ? `${data.state_b[key]}${suffix}` : '—'}
                 </span>
               </div>
@@ -125,69 +148,79 @@ export default function StateComparison({ stateData, electionType, onElectionTyp
 
           {/* Turnout Trend Chart */}
           {turnoutChart.length > 0 && (
-            <div className="chart-section">
-              <h3>Turnout Trend Comparison</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={turnoutChart}>
-                  <XAxis dataKey="year" />
-                  <YAxis domain={[0, 100]} unit="%" />
-                  <Tooltip />
-                  <Line
-                    type="monotone"
-                    dataKey="a"
-                    name={data.state_a?.display_name}
-                    stroke="#e63946"
-                    strokeWidth={2}
-                    dot={{ r: 3 }}
-                    connectNulls
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="b"
-                    name={data.state_b?.display_name}
-                    stroke="#457b9d"
-                    strokeWidth={2}
-                    dot={{ r: 3 }}
-                    connectNulls
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+            <div className="mb-6">
+              <h3 className="text-base font-semibold text-primary-400 mb-3">
+                Turnout Trend Comparison
+              </h3>
+              <div className="min-h-[200px] h-[40vh] max-h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={turnoutChart}>
+                    <XAxis dataKey="year" />
+                    <YAxis domain={[0, 100]} unit="%" />
+                    <Tooltip />
+                    <Line
+                      type="monotone"
+                      dataKey="a"
+                      name={data.state_a?.display_name}
+                      stroke="#e63946"
+                      strokeWidth={2}
+                      dot={{ r: 3 }}
+                      connectNulls
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="b"
+                      name={data.state_b?.display_name}
+                      stroke="#457b9d"
+                      strokeWidth={2}
+                      dot={{ r: 3 }}
+                      connectNulls
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           )}
 
           {/* Top Parties Comparison */}
-          <div className="compare-parties">
-            <div className="compare-col">
-              <h4>{data.state_a?.display_name} — Top Parties</h4>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <h4 className="text-sm font-semibold text-white mb-2">
+                {data.state_a?.display_name} — Top Parties
+              </h4>
               {data.state_a?.top_parties?.map((p) => (
-                <div key={p.party} className="party-bar-row">
-                  <span className="party-name">{p.party}</span>
-                  <span className="party-bar">
+                <div key={p.party} className="flex items-center gap-2 mb-1 text-xs">
+                  <span className="w-16 text-neutral-300 truncate">{p.party}</span>
+                  <span className="flex-1 h-4 bg-neutral-800 rounded overflow-hidden">
                     <span
+                      className="block h-full rounded"
                       style={{
                         width: `${(p.seats_won / (data.state_a.total_constituencies || 1)) * 100}%`,
                         background: partyColor(p.party),
                       }}
                     />
                   </span>
-                  <span className="party-seats">{p.seats_won}</span>
+                  <span className="w-8 text-right text-neutral-300">{p.seats_won}</span>
                 </div>
               ))}
             </div>
-            <div className="compare-col">
-              <h4>{data.state_b?.display_name} — Top Parties</h4>
+            <div>
+              <h4 className="text-sm font-semibold text-white mb-2">
+                {data.state_b?.display_name} — Top Parties
+              </h4>
               {data.state_b?.top_parties?.map((p) => (
-                <div key={p.party} className="party-bar-row">
-                  <span className="party-name">{p.party}</span>
-                  <span className="party-bar">
+                <div key={p.party} className="flex items-center gap-2 mb-1 text-xs">
+                  <span className="w-16 text-neutral-300 truncate">{p.party}</span>
+                  <span className="flex-1 h-4 bg-neutral-800 rounded overflow-hidden">
                     <span
+                      className="block h-full rounded"
                       style={{
                         width: `${(p.seats_won / (data.state_b.total_constituencies || 1)) * 100}%`,
                         background: partyColor(p.party),
                       }}
                     />
                   </span>
-                  <span className="party-seats">{p.seats_won}</span>
+                  <span className="w-8 text-right text-neutral-300">{p.seats_won}</span>
                 </div>
               ))}
             </div>
