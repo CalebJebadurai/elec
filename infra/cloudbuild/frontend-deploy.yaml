@@ -3,12 +3,12 @@
 
 steps:
   # Install dependencies
-  - name: "oven/bun:1-alpine"
+  - name: "oven/bun:1.3-alpine"
     dir: "frontend"
     args: ["bun", "install", "--frozen-lockfile"]
 
   # Build production bundle
-  - name: "oven/bun:1-alpine"
+  - name: "oven/bun:1.3-alpine"
     dir: "frontend"
     args: ["bun", "run", "build"]
     env:

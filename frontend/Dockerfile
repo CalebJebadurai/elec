@@ -1,5 +1,5 @@
 # ── Development stage ─────────────────────────────────────
-FROM oven/bun:1-alpine AS dev
+FROM oven/bun:1.3-alpine AS dev
 
 WORKDIR /app
 
@@ -13,7 +13,7 @@ EXPOSE 5173
 CMD ["bun", "run", "dev"]
 
 # ── Production build stage ────────────────────────────────
-FROM oven/bun:1-alpine AS build
+FROM oven/bun:1.3-alpine AS build
 
 WORKDIR /app
 
