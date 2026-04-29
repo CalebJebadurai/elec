@@ -19,15 +19,20 @@ def _get_ssl_context():
     if "localhost" in url or "127.0.0.1" in url or "host.docker" in url or "@db:" in url or "/cloudsql/" in url:
         return None
 
+    # Railway uses self-signed certs — auto-detect and skip verification
+    is_railway = "railway" in url or os.environ.get("RAILWAY_ENVIRONMENT")
+
     # Emergency toggle: set DB_SSL_VERIFY=false to disable verification
-    if os.environ.get("DB_SSL_VERIFY", "true").lower() in ("false", "0", "no"):
+    skip_verify = os.environ.get("DB_SSL_VERIFY", "true").lower() in ("false", "0", "no")
+
+    if skip_verify or is_railway:
         ctx = ssl.create_default_context()
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
         return ctx
 
     ctx = ssl.create_default_context()
-    # Load custom CA certificate if provided (e.g. for Railway self-signed certs)
+    # Load custom CA certificate if provided
     ca_cert = os.environ.get("DB_SSL_CA_CERT")
     if ca_cert:
         ctx.load_verify_locations(cafile=ca_cert)
