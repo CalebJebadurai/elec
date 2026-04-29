@@ -26,21 +26,46 @@ def query(sql: str, params: dict | None = None) -> pd.DataFrame:
         return pd.read_sql(text(sql), conn, params=params)
 
 
-def query_all() -> pd.DataFrame:
-    """Load the entire tcpd_ae table."""
-    return query("SELECT * FROM tcpd_ae ORDER BY year, constituency_no, position")
+def query_all(state: str | None = None, election_type: str = "AE") -> pd.DataFrame:
+    """Load election data, optionally filtered by state and election type."""
+    sql = "SELECT * FROM tcpd_ae WHERE election_type = :et"
+    params: dict = {"et": election_type}
+    if state:
+        sql += " AND state_name = :state"
+        params["state"] = state
+    sql += " ORDER BY year, constituency_no, position"
+    return query(sql, params)
 
 
-# General elections only (filter out by-elections with few candidates)
+def query_states() -> pd.DataFrame:
+    """List all distinct states in the dataset."""
+    return query("SELECT DISTINCT state_name FROM tcpd_ae ORDER BY state_name")
+
+
+def query_ge(state: str | None = None) -> pd.DataFrame:
+    """Load General Election (Lok Sabha) data, optionally filtered by state."""
+    return query_all(state=state, election_type="GE")
+
+
+def query_ae(state: str | None = None) -> pd.DataFrame:
+    """Load Assembly Election data, optionally filtered by state."""
+    return query_all(state=state, election_type="AE")
+
+
+# ── Tamil Nadu–specific constants ────────────────────────
+# These are kept for backward compatibility with existing notebooks.
+# For other states, query the database directly.
+
+# TN general elections (filter out by-elections with few candidates)
 GENERAL_ELECTION_YEARS = [1971, 1977, 1980, 1984, 1989, 1991, 1996, 2001, 2006, 2011, 2016, 2021]
 
-# Post-2008 delimitation years (234 fixed constituencies)
+# Post-2008 delimitation years (234 fixed constituencies in TN)
 POST_DELIM_YEARS = [2011, 2016, 2021]
 
-# Major parties for focused analysis
+# TN major parties
 MAJOR_PARTIES = ["DMK", "ADMK", "INC", "PMK", "DMDK", "BJP", "CPM", "CPI", "MDMK", "NTK", "ADK"]
 
-# Alliance blocs (approximate — shifted over elections)
+# TN alliance blocs (approximate — shifted over elections)
 ALLIANCES = {
     2021: {
         "DMK+": ["DMK", "INC", "CPM", "CPI", "MDMK", "VCK", "MMK"],
@@ -68,7 +93,7 @@ ALLIANCES = {
     },
 }
 
-# Sub-regions
+# TN sub-regions
 SUB_REGIONS = [
     "CHENNAI CITY REGION",
     "WESTERN REGION",

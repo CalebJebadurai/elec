@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────
+# DEPRECATED: Seeds only Tamil Nadu AE data (single CSV).
+# For all states (AE + GE), use seed-railway-all.sh instead:
+#   ./infra/seed-railway-all.sh <DATABASE_URL>
+# ─────────────────────────────────────────────────────────
 # Seed the Cloud SQL database with election data
 # Run ONCE after terraform apply
 # ─────────────────────────────────────────────────────────

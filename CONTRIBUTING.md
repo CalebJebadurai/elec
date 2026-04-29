@@ -1,4 +1,4 @@
-# Contributing to Tamil Nadu Election Analysis
+# Contributing to India Election Analysis & Prediction Platform
 
 Thank you for your interest in contributing! This project is maintained by [@cnickson](https://github.com/cnickson). All contributions go through pull request review.
 
@@ -61,9 +61,15 @@ git checkout -b feature/your-feature-name
 ### Code Style
 
 - **Python**: Follow PEP 8. Use type hints.
-- **JavaScript/React**: Use functional components, hooks. No TypeScript required but welcome.
+- **TypeScript/React**: TypeScript is the standard for all new frontend files. Use functional components and hooks.
 - **SQL**: Use parameterized queries only. Never interpolate user input.
 - **CSS**: Follow the existing variable-based dark theme structure.
+
+### Tooling
+
+- **Package Manager**: Use [Bun](https://bun.sh/) for the frontend (`bun install`, `bun run dev`).
+- **CI**: GitHub Actions runs linting and tests on every PR. Ensure your changes pass before requesting review.
+- **Linting**: ESLint is configured. Run `bun run lint` to check locally.
 
 ### What We Accept
 
@@ -72,7 +78,7 @@ git checkout -b feature/your-feature-name
 - New election data sources (with proper attribution)
 - UI/UX improvements
 - Accessibility improvements
-- Internationalization (Tamil language support welcome)
+- Internationalization (multi-language support welcome)
 - Documentation improvements
 
 ### What We Don't Accept
