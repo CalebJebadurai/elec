@@ -37,6 +37,43 @@ class CreateBookmarkRequest(BaseModel):
     def validate_params(cls, v: dict) -> dict:
         if len(json.dumps(v)) > 10_000:
             raise ValueError("Params too large (max 10KB)")
+        # Range-check numeric prediction factor fields if present
+        _FACTOR_RANGES = {
+            "antiIncumbencyPct": (0, 100),
+            "turnoutPct": (0, 100),
+            "newPartyStatewideVoteShare": (0, 100),
+            "turnoutChange": (-30, 30),
+            "incumbencyFatigue": (0, 100),
+            "turncoatPenalty": (0, 100),
+            "recontestBonus": (0, 50),
+            "sameConstituencyBonus": (0, 50),
+            "previousMarginFactor": (-50, 50),
+            "enopFactor": (-50, 50),
+            "nCandFactor": (-50, 50),
+            "constituencyTypeFactor": (-50, 50),
+            "genderFactor": (-50, 50),
+            "partyStrengthFactor": (-50, 50),
+            "partyVoteShareFactor": (-50, 50),
+        }
+        for key, (lo, hi) in _FACTOR_RANGES.items():
+            if key in v:
+                val = v[key]
+                if isinstance(val, (int, float)) and not (lo <= val <= hi):
+                    raise ValueError(f"{key} must be between {lo} and {hi}")
+        # Validate predictionMode if present
+        if "predictionMode" in v and v["predictionMode"] not in ("formula", "ml"):
+            raise ValueError("predictionMode must be 'formula' or 'ml'")
+        # Validate allianceConfig structure if present
+        if "allianceConfig" in v:
+            ac = v["allianceConfig"]
+            if not isinstance(ac, list) or len(ac) > 20:
+                raise ValueError("allianceConfig must be a list of max 20 alliances")
+            for bloc in ac:
+                if not isinstance(bloc, dict):
+                    raise ValueError("Each alliance must be an object")
+                eff = bloc.get("transferEfficiency", 0.85)
+                if isinstance(eff, (int, float)) and not (0.5 <= eff <= 1.0):
+                    raise ValueError("transferEfficiency must be between 0.5 and 1.0")
         return v
 
 

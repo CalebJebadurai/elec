@@ -111,6 +111,13 @@ export default function PredictionResults({
           >
             <div className="text-xs text-neutral-400">{p.party}</div>
             <div className="text-lg font-bold text-white mt-0.5">{p.seats}</div>
+            {p.seatRangeLow != null &&
+              p.seatRangeHigh != null &&
+              p.seatRangeLow !== p.seatRangeHigh && (
+                <div className="text-xs text-neutral-500">
+                  {p.seatRangeLow}–{p.seatRangeHigh}
+                </div>
+              )}
             <div className="text-xs text-neutral-500">{p.avgVoteShare.toFixed(1)}% avg</div>
           </div>
         ))}
@@ -263,6 +270,20 @@ export default function PredictionResults({
           </ResponsiveContainer>
         </div>
       </div>
+
+      {/* Prediction disclaimer */}
+      {summary.parties.some((p) => p.seatRangeHigh - p.seatRangeLow > summary.totalSeats * 0.1) && (
+        <p className="text-xs text-warning bg-warning/10 border border-warning/20 rounded-lg px-3 py-2 mt-4 leading-relaxed">
+          ⚠️ High uncertainty: slider settings are far from defaults. Seat ranges shown reflect
+          increased prediction uncertainty. Results should be treated as rough directional
+          estimates.
+        </p>
+      )}
+      <p className="text-xs text-neutral-500 mt-4 leading-relaxed">
+        ℹ️ These predictions are exploratory what-if scenarios, not forecasts. They reflect the
+        mathematical implications of your slider settings combined with historical patterns. Actual
+        election outcomes depend on factors not captured by this model.
+      </p>
     </div>
   );
 }

@@ -25,7 +25,12 @@ import { useStateSelection } from './contexts/StateContext';
 import { useDebounce } from './hooks/useDebounce';
 import { api } from './api';
 import { DEFAULT_PREDICTION_PARAMS, normalizeParty, buildAffinityPresets } from './constants';
-import { generateBaseline, applyNewParty, aggregateResults } from './engine/predictionEngine';
+import {
+  generateBaseline,
+  applyNewParty,
+  applyAllianceTransfers,
+  aggregateResults,
+} from './engine/predictionEngine';
 import { AnimatePresence, motion } from 'motion/react';
 import { pageTransition } from './lib/motion';
 import Skeleton from './components/Skeleton';
@@ -152,23 +157,54 @@ export default function App() {
   // Compute baseline predictions (only re-runs when core params change)
   const baseline = useMemo(() => {
     if (!predData) return [];
-    return generateBaseline(predData.constituencies, {
-      antiIncumbencyPct: debouncedPredParams.antiIncumbencyPct,
-      turnoutPct: debouncedPredParams.turnoutPct,
-      growthFactor,
-    });
+    return generateBaseline(
+      predData.constituencies,
+      {
+        antiIncumbencyPct: debouncedPredParams.antiIncumbencyPct,
+        turnoutPct: debouncedPredParams.turnoutPct,
+        growthFactor,
+      },
+      {
+        turnoutChange: debouncedPredParams.turnoutChange,
+        incumbencyFatigue: debouncedPredParams.incumbencyFatigue,
+        turncoatPenalty: debouncedPredParams.turncoatPenalty,
+        recontestBonus: debouncedPredParams.recontestBonus,
+        sameConstituencyBonus: debouncedPredParams.sameConstituencyBonus,
+        previousMarginFactor: debouncedPredParams.previousMarginFactor,
+        enopFactor: debouncedPredParams.enopFactor,
+        nCandFactor: debouncedPredParams.nCandFactor,
+        constituencyTypeFactor: debouncedPredParams.constituencyTypeFactor,
+        genderFactor: debouncedPredParams.genderFactor,
+        partyStrengthFactor: debouncedPredParams.partyStrengthFactor,
+        partyVoteShareFactor: debouncedPredParams.partyVoteShareFactor,
+      },
+      predData._state || null
+    );
   }, [
     predData,
     debouncedPredParams.antiIncumbencyPct,
     debouncedPredParams.turnoutPct,
+    debouncedPredParams.turnoutChange,
+    debouncedPredParams.incumbencyFatigue,
+    debouncedPredParams.turncoatPenalty,
+    debouncedPredParams.recontestBonus,
+    debouncedPredParams.sameConstituencyBonus,
+    debouncedPredParams.previousMarginFactor,
+    debouncedPredParams.enopFactor,
+    debouncedPredParams.nCandFactor,
+    debouncedPredParams.constituencyTypeFactor,
+    debouncedPredParams.genderFactor,
+    debouncedPredParams.partyStrengthFactor,
+    debouncedPredParams.partyVoteShareFactor,
     growthFactor,
   ]);
 
-  // Apply new party on top of baseline (only re-runs when party params change)
+  // Apply new party on top of baseline, then alliance transfers
   const predictions = useMemo(() => {
     if (!baseline.length) return baseline;
+    let result = baseline;
     if (debouncedPredParams.newPartyName && debouncedPredParams.newPartyStatewideVoteShare > 0) {
-      return applyNewParty(baseline, {
+      result = applyNewParty(result, {
         name: debouncedPredParams.newPartyName,
         color: debouncedPredParams.newPartyColor,
         statewideVoteShare: debouncedPredParams.newPartyStatewideVoteShare,
@@ -176,7 +212,10 @@ export default function App() {
         constituencyOverrides: debouncedPredParams.constituencyOverrides,
       });
     }
-    return baseline;
+    if (debouncedPredParams.allianceConfig.length > 0) {
+      result = applyAllianceTransfers(result, debouncedPredParams.allianceConfig);
+    }
+    return result;
   }, [
     baseline,
     debouncedPredParams.newPartyName,
@@ -184,6 +223,7 @@ export default function App() {
     debouncedPredParams.newPartyStatewideVoteShare,
     debouncedPredParams.affinityWeights,
     debouncedPredParams.constituencyOverrides,
+    debouncedPredParams.allianceConfig,
   ]);
 
   const summary = useMemo(() => aggregateResults(predictions), [predictions]);
@@ -495,7 +535,7 @@ export default function App() {
                   />
 
                   {/* National dashboard routes */}
-                  <Route path="/national" element={<NationalDashboard initialTab="overview" />} />
+                  <Route path="/national" element={<NationalDashboard initialTab="map" />} />
                   <Route
                     path="/national/parties"
                     element={<NationalDashboard initialTab="parties" />}
@@ -566,6 +606,7 @@ export default function App() {
                                 onChange={setPredParams}
                                 presets={dynamicPresets}
                                 topParties={topParties}
+                                stateName={selectedState}
                               />
                               <div className="flex-1 min-w-0">
                                 <PredictionResults

@@ -171,6 +171,10 @@ export const api = {
   predictionData: (state: string): Promise<PredictionDataResponse> =>
     _cachedGet(`${V1}/predict/data?state=${encodeURIComponent(state)}`),
 
+  // ML-based prediction (Phase 2 endpoint)
+  mlPredict: (state: string, factors: Record<string, number>): Promise<PredictionDataResponse> =>
+    post(`${V1}/predict/ml`, { state, factors }),
+
   // Auth
   verifyOtp: (mobile: string, firebase_id_token: string): Promise<AuthResponse> =>
     post(`${V1}/auth/verify-otp`, { mobile, firebase_id_token }),

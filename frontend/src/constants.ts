@@ -150,6 +150,23 @@ export const DEFAULT_PREDICTION_PARAMS: AppPredictionParams = {
   newPartyStatewideVoteShare: 0,
   affinityWeights: { ...AFFINITY_PRESETS['neutral'].weights },
   constituencyOverrides: {},
+
+  // Multi-factor defaults (0 = no adjustment from baseline)
+  turnoutChange: 0,
+  incumbencyFatigue: 0,
+  turncoatPenalty: 0,
+  recontestBonus: 0,
+  sameConstituencyBonus: 0,
+  previousMarginFactor: 0,
+  enopFactor: 0,
+  nCandFactor: 0,
+  constituencyTypeFactor: 0,
+  genderFactor: 0,
+  partyStrengthFactor: 0,
+  partyVoteShareFactor: 0,
+
+  allianceConfig: [],
+  predictionMode: 'formula',
 };
 
 /**
