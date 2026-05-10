@@ -1,7 +1,7 @@
 ---
 description: "Use when: deep codebase analysis is needed before planning. Researches architecture, patterns, constraints, dependencies, and industry-standard approaches for a given problem domain. Returns structured findings as prose. Use as a subagent of the Architect agent for thorough technical analysis."
 tools: [read, search, web, fetch, edit, new, agent]
-agents: [ui-ux]
+agents: [ui-ux, data-scientist, data-critic]
 model: ['Claude Opus 4 (copilot)']
 user-invocable: false
 disable-model-invocation: false
@@ -54,6 +54,16 @@ Authentication, authorization, input validation, data exposure, OWASP-relevant c
 
 ### Performance Findings
 Observed query patterns, N+1 risks, serialization costs, rendering bottlenecks, caching opportunities, and any performance-sensitive paths in the affected area.
+
+### Quantitative & Statistical Findings (Conditional)
+Invoke the **data-scientist** subagent and populate this section **only when both conditions are true**:
+
+1. The research topic requires numerical evidence that cannot be established by reading code alone — vote share trends, statistical significance of a pattern, regression analysis, distribution comparisons, or any claim that needs computation against actual data.
+2. The project's election data (database or CSV files) is relevant to the question being researched.
+
+**Skip this section entirely when** the topic is code architecture, API design, infrastructure, DevOps, UI layout, dependency management, or any area where the answer comes from reading source code and documentation rather than computing against data.
+
+When invoking data-scientist, provide a precise quantitative question (e.g., "compute the average vote share swing for incumbent parties across Tamil Nadu elections 2001–2021 with 95% CI") — not a vague request like "analyze the election data." After receiving results, invoke the **data-critic** subagent to verify the data-scientist's output. Pass it the data-scientist's full report including the notebook path. Include the data-critic's verdict and any caveats in this section alongside the data-scientist's findings.
 
 ### Frontend Visual & UX Findings (Conditional)
 Invoke the **ui-ux** subagent and populate this section **only when both conditions are true**:

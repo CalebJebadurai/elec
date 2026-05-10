@@ -24,6 +24,8 @@ from payment_routes import payment_router, webhook_router
 from admin_routes import admin_router
 from export_routes import export_router
 from apikey_routes import apikey_router
+from factor_routes import factor_router
+from prediction_routes import prediction_router
 
 # ---------------------------------------------------------------------------
 # Sentry error tracking (no-op if DSN not set)
@@ -451,6 +453,19 @@ async def lifespan(app: FastAPI):
                 created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
                 UNIQUE(user_id, bookmark_id)
             );
+            CREATE TABLE IF NOT EXISTS model_metadata (
+                id SERIAL PRIMARY KEY,
+                model_name TEXT NOT NULL,
+                version TEXT NOT NULL,
+                state_name TEXT,
+                file_path TEXT NOT NULL,
+                metrics JSONB DEFAULT '{}',
+                training_params JSONB DEFAULT '{}',
+                feature_names JSONB DEFAULT '[]',
+                is_active BOOLEAN NOT NULL DEFAULT false,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                UNIQUE(model_name, version, state_name)
+            );
         """)
         # Create indexes if they don't exist (idempotent)
         for stmt in [
@@ -557,6 +572,8 @@ v1.include_router(webhook_router)
 v1.include_router(admin_router)
 v1.include_router(export_router)
 v1.include_router(apikey_router)
+v1.include_router(factor_router)
+v1.include_router(prediction_router)
 app.include_router(v1)
 
 # Legacy unprefixed routes (deprecation period)
@@ -564,6 +581,8 @@ app.include_router(router)
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
 app.include_router(bookmark_router, prefix="/bookmarks", tags=["bookmarks"])
 app.include_router(national_router)
+app.include_router(factor_router)
+app.include_router(prediction_router)
 
 # Non-versioned routes
 app.include_router(og_router)

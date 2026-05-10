@@ -283,10 +283,10 @@ function DesktopTableView({ filtered, activeYears, countSwings, onSelect }) {
       className="hidden md:block overflow-auto"
       style={{ maxHeight: 'calc(100vh - 200px)' }}
     >
-      <table className="const-grid">
+      <table className="const-grid" style={{ display: 'block' }}>
         <caption className="sr-only">Constituency election results</caption>
-        <thead>
-          <tr>
+        <thead style={{ display: 'block' }}>
+          <tr style={{ display: 'table', tableLayout: 'fixed', width: '100%' }}>
             <th scope="col" className="sticky-col">
               Constituency
             </th>

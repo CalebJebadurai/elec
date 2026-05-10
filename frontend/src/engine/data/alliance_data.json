@@ -1,0 +1,113 @@
+{
+  "Tamil_Nadu": {
+    "2021": [
+      {
+        "name": "DMK+",
+        "parties": ["DMK", "INC", "VCK", "CPI", "CPM", "IUML"],
+        "transferEfficiency": 0.85
+      },
+      { "name": "ADMK+", "parties": ["ADMK", "BJP", "PMK"], "transferEfficiency": 0.8 }
+    ],
+    "2016": [
+      { "name": "DMK+", "parties": ["DMK", "INC"], "transferEfficiency": 0.85 },
+      { "name": "ADMK", "parties": ["ADMK"], "transferEfficiency": 1.0 }
+    ],
+    "2011": [
+      { "name": "ADMK+", "parties": ["ADMK", "CPI", "CPM"], "transferEfficiency": 0.85 },
+      { "name": "DMK+", "parties": ["DMK", "INC"], "transferEfficiency": 0.8 }
+    ]
+  },
+  "Maharashtra": {
+    "2024": [
+      { "name": "MahaYuti", "parties": ["BJP", "SHS", "NCP"], "transferEfficiency": 0.8 },
+      { "name": "MVA", "parties": ["INC", "AITC", "SP"], "transferEfficiency": 0.75 }
+    ],
+    "2019": [
+      { "name": "NDA", "parties": ["BJP", "SHS"], "transferEfficiency": 0.85 },
+      { "name": "UPA", "parties": ["INC", "NCP"], "transferEfficiency": 0.8 }
+    ]
+  },
+  "Uttar_Pradesh": {
+    "2022": [
+      { "name": "NDA", "parties": ["BJP"], "transferEfficiency": 1.0 },
+      { "name": "SP+", "parties": ["SP", "RLD"], "transferEfficiency": 0.8 }
+    ],
+    "2017": [
+      { "name": "BJP+", "parties": ["BJP"], "transferEfficiency": 1.0 },
+      { "name": "SP-INC", "parties": ["SP", "INC"], "transferEfficiency": 0.7 }
+    ]
+  },
+  "West_Bengal": {
+    "2021": [
+      { "name": "AITC", "parties": ["AITC"], "transferEfficiency": 1.0 },
+      { "name": "NDA", "parties": ["BJP"], "transferEfficiency": 1.0 }
+    ],
+    "2016": [
+      { "name": "AITC", "parties": ["AITC"], "transferEfficiency": 1.0 },
+      { "name": "Left+INC", "parties": ["CPM", "CPI", "INC"], "transferEfficiency": 0.75 }
+    ]
+  },
+  "Karnataka": {
+    "2023": [
+      { "name": "INC", "parties": ["INC"], "transferEfficiency": 1.0 },
+      { "name": "NDA", "parties": ["BJP"], "transferEfficiency": 1.0 },
+      { "name": "JD(S)", "parties": ["JD(S)"], "transferEfficiency": 1.0 }
+    ],
+    "2018": [
+      { "name": "INC", "parties": ["INC"], "transferEfficiency": 1.0 },
+      { "name": "BJP", "parties": ["BJP"], "transferEfficiency": 1.0 },
+      { "name": "JD(S)", "parties": ["JD(S)"], "transferEfficiency": 1.0 }
+    ]
+  },
+  "Bihar": {
+    "2020": [
+      { "name": "NDA", "parties": ["BJP", "JD(U)"], "transferEfficiency": 0.8 },
+      { "name": "MGB", "parties": ["RJD", "INC", "CPM", "CPI"], "transferEfficiency": 0.75 }
+    ],
+    "2015": [
+      { "name": "MGB", "parties": ["JD(U)", "RJD", "INC"], "transferEfficiency": 0.85 },
+      { "name": "NDA", "parties": ["BJP", "LJP"], "transferEfficiency": 0.8 }
+    ]
+  },
+  "Rajasthan": {
+    "2023": [
+      { "name": "BJP", "parties": ["BJP"], "transferEfficiency": 1.0 },
+      { "name": "INC", "parties": ["INC"], "transferEfficiency": 1.0 }
+    ],
+    "2018": [
+      { "name": "INC", "parties": ["INC"], "transferEfficiency": 1.0 },
+      { "name": "BJP", "parties": ["BJP"], "transferEfficiency": 1.0 }
+    ]
+  },
+  "Madhya_Pradesh": {
+    "2023": [
+      { "name": "BJP", "parties": ["BJP"], "transferEfficiency": 1.0 },
+      { "name": "INC", "parties": ["INC"], "transferEfficiency": 1.0 }
+    ],
+    "2018": [
+      { "name": "INC", "parties": ["INC"], "transferEfficiency": 1.0 },
+      { "name": "BJP", "parties": ["BJP"], "transferEfficiency": 1.0 }
+    ]
+  },
+  "Andhra_Pradesh": {
+    "2024": [
+      { "name": "NDA", "parties": ["TDP", "BJP", "JNP"], "transferEfficiency": 0.85 },
+      { "name": "YSRCP", "parties": ["YSRCP"], "transferEfficiency": 1.0 }
+    ],
+    "2019": [
+      { "name": "YSRCP", "parties": ["YSRCP"], "transferEfficiency": 1.0 },
+      { "name": "TDP+", "parties": ["TDP"], "transferEfficiency": 1.0 }
+    ]
+  },
+  "Gujarat": {
+    "2022": [
+      { "name": "BJP", "parties": ["BJP"], "transferEfficiency": 1.0 },
+      { "name": "INC", "parties": ["INC"], "transferEfficiency": 1.0 },
+      { "name": "AAP", "parties": ["AAP"], "transferEfficiency": 1.0 }
+    ],
+    "2017": [
+      { "name": "BJP", "parties": ["BJP"], "transferEfficiency": 1.0 },
+      { "name": "INC", "parties": ["INC"], "transferEfficiency": 1.0 }
+    ]
+  }
+}

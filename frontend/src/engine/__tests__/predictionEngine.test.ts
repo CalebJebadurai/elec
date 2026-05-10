@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { generateBaseline, applyNewParty, aggregateResults } from '../predictionEngine';
-import type { ConstituencyPredictionData, PredictionParams } from '../../types';
+import {
+  generateBaseline,
+  applyNewParty,
+  applyAllianceTransfers,
+  aggregateResults,
+} from '../predictionEngine';
+import type { ConstituencyPredictionData, PredictionParams, AllianceBloc } from '../../types';
 
 // ── Test fixtures ─────────────────────────────────────────
 
@@ -536,5 +541,260 @@ describe('full prediction chain', () => {
     // Total seats across all parties should equal total constituencies
     const totalSeatsByParty = summary.parties.reduce((s, p) => s + p.seats, 0);
     expect(totalSeatsByParty).toBe(3);
+  });
+});
+
+// ── Multi-factor prediction tests ─────────────────────────
+
+describe('generateBaseline with multi-factor params', () => {
+  it('default factor params produce identical results to no factors', () => {
+    const constituencies = [makeConstituency()];
+    const params: PredictionParams = { antiIncumbencyPct: 10, turnoutPct: 70, growthFactor: 1.0 };
+    const zeroFactors = {
+      turnoutChange: 0,
+      incumbencyFatigue: 0,
+      turncoatPenalty: 0,
+      recontestBonus: 0,
+      sameConstituencyBonus: 0,
+      previousMarginFactor: 0,
+      enopFactor: 0,
+      nCandFactor: 0,
+      constituencyTypeFactor: 0,
+      genderFactor: 0,
+      partyStrengthFactor: 0,
+      partyVoteShareFactor: 0,
+    };
+    const withoutFactors = generateBaseline(constituencies, params);
+    const withFactors = generateBaseline(constituencies, params, zeroFactors);
+
+    expect(withFactors[0].predicted_winner).toBe(withoutFactors[0].predicted_winner);
+    expect(withFactors[0].predicted_winner_votes).toBe(withoutFactors[0].predicted_winner_votes);
+  });
+
+  it('incumbency fatigue penalizes the incumbent', () => {
+    const constituencies = [makeConstituency()];
+    const params: PredictionParams = { antiIncumbencyPct: 0, turnoutPct: 70, growthFactor: 1.0 };
+    const baseline = generateBaseline(constituencies, params);
+    const withFatigue = generateBaseline(constituencies, params, {
+      turnoutChange: 0,
+      incumbencyFatigue: 80,
+      turncoatPenalty: 0,
+      recontestBonus: 0,
+      sameConstituencyBonus: 0,
+      previousMarginFactor: 0,
+      enopFactor: 0,
+      nCandFactor: 0,
+      constituencyTypeFactor: 0,
+      genderFactor: 0,
+      partyStrengthFactor: 0,
+      partyVoteShareFactor: 0,
+    });
+
+    const admkBefore = baseline[0].parties.find((p) => p.party === 'ADMK')!;
+    const admkAfter = withFatigue[0].parties.find((p) => p.party === 'ADMK')!;
+    expect(admkAfter.voteShare).toBeLessThan(admkBefore.voteShare);
+  });
+
+  it('vote shares still sum to 1.0 with multiple factors active', () => {
+    const constituencies = [makeConstituency()];
+    const params: PredictionParams = { antiIncumbencyPct: 20, turnoutPct: 70, growthFactor: 1.0 };
+    const factors = {
+      turnoutChange: 15,
+      incumbencyFatigue: 30,
+      turncoatPenalty: 20,
+      recontestBonus: 10,
+      sameConstituencyBonus: 5,
+      previousMarginFactor: -10,
+      enopFactor: 15,
+      nCandFactor: -5,
+      constituencyTypeFactor: 10,
+      genderFactor: -5,
+      partyStrengthFactor: 20,
+      partyVoteShareFactor: 10,
+    };
+    const results = generateBaseline(constituencies, params, factors);
+    const totalShare = results[0].parties.reduce((s, p) => s + p.voteShare, 0);
+    expect(totalShare).toBeCloseTo(1.0, 5);
+  });
+
+  it('produces error margin fields', () => {
+    const constituencies = [makeConstituency()];
+    const params: PredictionParams = { antiIncumbencyPct: 10, turnoutPct: 70, growthFactor: 1.0 };
+    const results = generateBaseline(constituencies, params);
+    expect(results[0].errorMarginLow).toBeDefined();
+    expect(results[0].errorMarginHigh).toBeDefined();
+    expect(results[0].errorMarginLow!).toBeLessThanOrEqual(results[0].errorMarginHigh!);
+  });
+
+  it('error margins widen with slider deviation', () => {
+    const constituencies = [makeConstituency()];
+    const params: PredictionParams = { antiIncumbencyPct: 10, turnoutPct: 70, growthFactor: 1.0 };
+    const defaultResults = generateBaseline(constituencies, params);
+    const extremeResults = generateBaseline(constituencies, params, {
+      turnoutChange: 30,
+      incumbencyFatigue: 100,
+      turncoatPenalty: 100,
+      recontestBonus: 50,
+      sameConstituencyBonus: 50,
+      previousMarginFactor: 50,
+      enopFactor: 50,
+      nCandFactor: 50,
+      constituencyTypeFactor: 50,
+      genderFactor: 50,
+      partyStrengthFactor: 50,
+      partyVoteShareFactor: 50,
+    });
+
+    const defaultRange = defaultResults[0].errorMarginHigh! - defaultResults[0].errorMarginLow!;
+    const extremeRange = extremeResults[0].errorMarginHigh! - extremeResults[0].errorMarginLow!;
+    expect(extremeRange).toBeGreaterThan(defaultRange);
+  });
+
+  it('party strength factor boosts incumbent', () => {
+    const constituencies = [makeConstituency()];
+    const params: PredictionParams = { antiIncumbencyPct: 0, turnoutPct: 70, growthFactor: 1.0 };
+    const baseline = generateBaseline(constituencies, params);
+    const boosted = generateBaseline(constituencies, params, {
+      turnoutChange: 0,
+      incumbencyFatigue: 0,
+      turncoatPenalty: 0,
+      recontestBonus: 0,
+      sameConstituencyBonus: 0,
+      previousMarginFactor: 0,
+      enopFactor: 0,
+      nCandFactor: 0,
+      constituencyTypeFactor: 0,
+      genderFactor: 0,
+      partyStrengthFactor: 50,
+      partyVoteShareFactor: 0,
+    });
+
+    const admkBefore = baseline[0].parties.find((p) => p.party === 'ADMK')!;
+    const admkAfter = boosted[0].parties.find((p) => p.party === 'ADMK')!;
+    expect(admkAfter.voteShare).toBeGreaterThan(admkBefore.voteShare);
+  });
+});
+
+// ── Alliance transfer tests ───────────────────────────────
+
+describe('applyAllianceTransfers', () => {
+  const multiPartyConstituency = makeConstituency({
+    candidates_latest: [
+      { party: 'ADMK', vote_share_percentage: 35, position: 1, votes: null },
+      { party: 'DMK', vote_share_percentage: 25, position: 2, votes: null },
+      { party: 'INC', vote_share_percentage: 20, position: 3, votes: null },
+      { party: 'BJP', vote_share_percentage: 10, position: 4, votes: null },
+      { party: 'PMK', vote_share_percentage: 10, position: 5, votes: null },
+    ],
+  });
+
+  it('returns unchanged results with empty alliance config', () => {
+    const baseline = generateBaseline([multiPartyConstituency], defaultParams);
+    const result = applyAllianceTransfers(baseline, []);
+    expect(result[0].predicted_winner_votes).toBe(baseline[0].predicted_winner_votes);
+  });
+
+  it('transfers votes to lead party in alliance', () => {
+    const baseline = generateBaseline([multiPartyConstituency], defaultParams);
+    const alliances: AllianceBloc[] = [
+      { name: 'UPA', parties: ['DMK', 'INC'], transferEfficiency: 0.85 },
+    ];
+    const result = applyAllianceTransfers(baseline, alliances);
+    const dmkAfter = result[0].parties.find((p) => p.party === 'DMK')!;
+    const dmkBefore = baseline[0].parties.find((p) => p.party === 'DMK')!;
+    expect(dmkAfter.votes).toBeGreaterThan(dmkBefore.votes);
+  });
+
+  it('alliance can flip a constituency', () => {
+    const baseline = generateBaseline([multiPartyConstituency], defaultParams);
+    const alliances: AllianceBloc[] = [
+      { name: 'UPA', parties: ['DMK', 'INC'], transferEfficiency: 0.9 },
+    ];
+    const result = applyAllianceTransfers(baseline, alliances);
+    // DMK+INC combined should beat ADMK
+    expect(result[0].predicted_winner).toBe('DMK');
+  });
+
+  it('maintains vote conservation', () => {
+    const baseline = generateBaseline([multiPartyConstituency], defaultParams);
+    const totalBefore = baseline[0].parties.reduce((s, p) => s + p.votes, 0);
+    const alliances: AllianceBloc[] = [
+      { name: 'NDA', parties: ['ADMK', 'BJP', 'PMK'], transferEfficiency: 0.85 },
+    ];
+    const result = applyAllianceTransfers(baseline, alliances);
+    const totalAfter = result[0].parties.reduce((s, p) => s + p.votes, 0);
+    expect(totalAfter).toBe(totalBefore);
+  });
+
+  it('clamps transfer efficiency to [0.5, 1.0]', () => {
+    const baseline = generateBaseline([multiPartyConstituency], defaultParams);
+    const alliances: AllianceBloc[] = [
+      { name: 'UPA', parties: ['DMK', 'INC'], transferEfficiency: 1.5 },
+    ];
+    const result = applyAllianceTransfers(baseline, alliances);
+    // Should not crash, efficiency clamped to 1.0
+    expect(result[0].parties.every((p) => p.votes >= 0)).toBe(true);
+  });
+});
+
+// ── Backward compatibility (Phase 5.5) ─────────────────────
+
+describe('backward compatibility', () => {
+  const oldStyleParams: PredictionParams = {
+    antiIncumbencyPct: 30,
+    turnoutPct: 72,
+    growthFactor: 1.05,
+  };
+
+  it('default factor params produce identical results to no factors', () => {
+    const withoutFactors = generateBaseline([makeConstituency()], oldStyleParams);
+    const withZeroFactors = generateBaseline([makeConstituency()], oldStyleParams, {
+      turnoutChange: 0,
+      incumbencyFatigue: 0,
+      turncoatPenalty: 0,
+      recontestBonus: 0,
+      sameConstituencyBonus: 0,
+      previousMarginFactor: 0,
+      enopFactor: 0,
+      nCandFactor: 0,
+      constituencyTypeFactor: 0,
+      genderFactor: 0,
+      partyStrengthFactor: 0,
+      partyVoteShareFactor: 0,
+    });
+
+    expect(withZeroFactors[0].predicted_winner).toBe(withoutFactors[0].predicted_winner);
+    expect(withZeroFactors[0].predicted_winner_votes).toBe(
+      withoutFactors[0].predicted_winner_votes
+    );
+    expect(withZeroFactors[0].predicted_margin_pct).toBeCloseTo(
+      withoutFactors[0].predicted_margin_pct,
+      5
+    );
+  });
+
+  it('old three-parameter bookmarks produce consistent predictions', () => {
+    // Simulate loading an old bookmark: only three params, new fields absent
+    const result = generateBaseline([makeConstituency()], oldStyleParams);
+    // With 30% anti-incumbency, ADMK should lose share
+    expect(result[0].predicted_winner_share).toBeLessThan(45);
+    // Vote conservation holds
+    const totalShare = result[0].parties.reduce((s, p) => s + p.voteShare, 0);
+    expect(totalShare).toBeCloseTo(1.0, 5);
+  });
+
+  it('aggregate results include seat ranges even with zero factors', () => {
+    const results = generateBaseline(
+      [makeConstituency(), makeConstituency({ constituency_name: 'Second', constituency_no: 2 })],
+      oldStyleParams
+    );
+    const agg = aggregateResults(results);
+    // seatRangeLow and seatRangeHigh should be present
+    agg.parties.forEach((p) => {
+      expect(p.seatRangeLow).toBeDefined();
+      expect(p.seatRangeHigh).toBeDefined();
+      expect(p.seatRangeLow).toBeLessThanOrEqual(p.seats);
+      expect(p.seatRangeHigh).toBeGreaterThanOrEqual(p.seats);
+    });
   });
 });

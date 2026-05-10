@@ -263,6 +263,8 @@ export interface PredictionResult {
   parties: PredictionParty[];
   new_party_votes?: number;
   new_party_share?: number;
+  errorMarginLow?: number;
+  errorMarginHigh?: number;
 }
 
 export interface PredictionParams {
@@ -282,6 +284,8 @@ export interface NewPartyConfig {
 export interface AggregateParty {
   party: string;
   seats: number;
+  seatRangeLow: number;
+  seatRangeHigh: number;
   avgVoteShare: number;
   totalVotes: number;
 }
@@ -426,6 +430,12 @@ export interface UsageSummaryOut {
 
 // ── App-level Prediction Params ─────────────────────────
 
+export interface AllianceBloc {
+  name: string;
+  parties: string[];
+  transferEfficiency: number;
+}
+
 export interface AppPredictionParams {
   antiIncumbencyPct: number;
   totalElectors: number | null;
@@ -436,6 +446,26 @@ export interface AppPredictionParams {
   newPartyStatewideVoteShare: number;
   affinityWeights: Record<string, number>;
   constituencyOverrides: Record<string, number>;
+
+  // Multi-factor slider params (default 0 = use historical baseline)
+  turnoutChange: number;
+  incumbencyFatigue: number;
+  turncoatPenalty: number;
+  recontestBonus: number;
+  sameConstituencyBonus: number;
+  previousMarginFactor: number;
+  enopFactor: number;
+  nCandFactor: number;
+  constituencyTypeFactor: number;
+  genderFactor: number;
+  partyStrengthFactor: number;
+  partyVoteShareFactor: number;
+
+  // Alliance configuration
+  allianceConfig: AllianceBloc[];
+
+  // Prediction mode
+  predictionMode: 'formula' | 'ml';
 }
 
 export interface AffinityPreset {

@@ -12,3 +12,6 @@ nbformat==5.10.4
 shap==0.46.0
 xgboost==3.0.0
 kaleido==0.2.1
+onnx>=1.15.0
+skl2onnx>=1.16.0
+onnxruntime>=1.17.0

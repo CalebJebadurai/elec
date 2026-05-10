@@ -1,4 +1,5 @@
 import { normalizeParty } from '../constants';
+import { getCoefficients } from './factorConfig';
 import type {
   ConstituencyPredictionData,
   PredictionParams,
@@ -8,25 +9,64 @@ import type {
   AggregateResult,
   AggregateParty,
   FlippedConstituency,
+  AppPredictionParams,
+  AllianceBloc,
 } from '../types';
 
+// ── Multi-factor params (slider values from AppPredictionParams) ────
+
+export interface FactorParams {
+  turnoutChange: number;
+  incumbencyFatigue: number;
+  turncoatPenalty: number;
+  recontestBonus: number;
+  sameConstituencyBonus: number;
+  previousMarginFactor: number;
+  enopFactor: number;
+  nCandFactor: number;
+  constituencyTypeFactor: number;
+  genderFactor: number;
+  partyStrengthFactor: number;
+  partyVoteShareFactor: number;
+}
+
+const ZERO_FACTORS: FactorParams = {
+  turnoutChange: 0,
+  incumbencyFatigue: 0,
+  turncoatPenalty: 0,
+  recontestBonus: 0,
+  sameConstituencyBonus: 0,
+  previousMarginFactor: 0,
+  enopFactor: 0,
+  nCandFactor: 0,
+  constituencyTypeFactor: 0,
+  genderFactor: 0,
+  partyStrengthFactor: 0,
+  partyVoteShareFactor: 0,
+};
+
 /**
- * Generate baseline predictions from latest actuals.
+ * Generate baseline predictions from latest actuals with multi-factor adjustments.
  *
  * For each constituency:
  * 1. Scale electors by growth factor (next total / latest total)
  * 2. Compute expected valid votes = scaled_electors * turnoutPct
  * 3. Apply anti-incumbency: incumbent party loses antiIncumbencyPct% of its
  *    vote_share, distributed proportionally to the runner-up.
- * 4. Recalculate absolute votes from adjusted shares.
+ * 4. Apply multi-factor modifiers: each factor produces a multiplicative
+ *    adjustment to each party's vote share based on regression coefficients.
+ * 5. Recalculate absolute votes from adjusted shares.
  */
 export function generateBaseline(
   constituencies: ConstituencyPredictionData[],
-  params: PredictionParams
+  params: PredictionParams,
+  factorParams: FactorParams = ZERO_FACTORS,
+  stateName: string | null = null
 ): PredictionResult[] {
   const { antiIncumbencyPct, turnoutPct, growthFactor } = params;
   const antiInc = antiIncumbencyPct / 100;
   const turnout = turnoutPct / 100;
+  const coefficients = getCoefficients(stateName);
 
   return constituencies.map((c) => {
     const scaledElectors = Math.round((c.electors_latest || 0) * growthFactor);
@@ -67,6 +107,15 @@ export function generateBaseline(
       }
     }
 
+    // ── Multi-factor adjustments ────────────────────────────
+    // Each factor produces a multiplicative modifier per party.
+    // modifier = 1 + (coefficient * sliderValue / 100)
+    // Clamped to [0.5, 2.0] to prevent runaway effects.
+    const hasFactors = Object.values(factorParams).some((v) => v !== 0);
+    if (hasFactors) {
+      applyMultiFactorModifiers(parties, c, factorParams, coefficients);
+    }
+
     // Normalize shares to sum to 1
     const totalShare = parties.reduce((s, p) => s + p.voteShare, 0);
     if (totalShare > 0) {
@@ -85,6 +134,12 @@ export function generateBaseline(
 
     const winner = parties[0];
     const runnerUp = parties[1];
+
+    // Compute error margins based on slider deviation
+    const sliderDistance = computeSliderDistance(factorParams);
+    const baseError = 3; // base ±3% error margin
+    const adjustedError = baseError * (1 + 0.5 * sliderDistance);
+    const winnerShare = winner.voteShare * 100;
 
     return {
       constituency_name: c.constituency_name,
@@ -108,8 +163,146 @@ export function generateBaseline(
           : 0,
       flipped: winner.party !== normalizeParty(c.winner_party_latest),
       parties,
+      errorMarginLow: Math.max(0, winnerShare - adjustedError),
+      errorMarginHigh: Math.min(100, winnerShare + adjustedError),
     };
   });
+}
+
+/**
+ * Apply multiplicative multi-factor modifiers to party vote shares.
+ *
+ * State-level factors apply uniformly to the incumbent party.
+ * Constituency-level factors apply based on constituency characteristics.
+ * Candidate-level factors apply to specific candidates based on their attributes.
+ */
+function applyMultiFactorModifiers(
+  parties: PredictionParty[],
+  constituency: ConstituencyPredictionData,
+  factors: FactorParams,
+  coefficients: Record<string, number>
+): void {
+  const incumbentParty = normalizeParty(constituency.winner_party_latest);
+
+  parties.forEach((p) => {
+    let modifier = 1.0;
+    const isIncumbent = p.party === incumbentParty && p.position === 1;
+
+    // ── Incumbency dynamics (candidate-level) ───────
+    if (factors.incumbencyFatigue !== 0 && isIncumbent) {
+      const coeff = coefficients.incumbencyFatigue || -0.08;
+      modifier *= 1 + coeff * (factors.incumbencyFatigue / 100);
+    }
+
+    if (factors.turncoatPenalty !== 0) {
+      // Apply to all parties proportionally — in a real implementation
+      // this would check per-candidate turncoat flags from constituency data
+      const coeff = coefficients.turncoatPenalty || -0.12;
+      // Apply a state-level factor: all parties get a small adjustment
+      modifier *= 1 + coeff * (factors.turncoatPenalty / 100) * 0.3;
+    }
+
+    if (factors.recontestBonus !== 0 && isIncumbent) {
+      const coeff = coefficients.recontestBonus || 0.04;
+      modifier *= 1 + coeff * (factors.recontestBonus / 100);
+    }
+
+    if (factors.sameConstituencyBonus !== 0 && isIncumbent) {
+      const coeff = coefficients.sameConstituencyBonus || 0.03;
+      modifier *= 1 + coeff * (factors.sameConstituencyBonus / 100);
+    }
+
+    // ── Electoral competition (constituency-level) ──
+    if (factors.previousMarginFactor !== 0 && constituency.margin_percentage_latest != null) {
+      const coeff = coefficients.previousMarginFactor || -0.06;
+      const normalizedMargin = constituency.margin_percentage_latest / 50; // normalize to ~[-1, 1]
+      if (isIncumbent) {
+        modifier *= 1 + coeff * (factors.previousMarginFactor / 100) * normalizedMargin;
+      } else if (p.position === 2) {
+        // Runner-up gets inverse effect
+        modifier *= 1 - coeff * (factors.previousMarginFactor / 100) * normalizedMargin;
+      }
+    }
+
+    if (factors.enopFactor !== 0 && constituency.enop_latest != null) {
+      const coeff = coefficients.enopFactor || -0.04;
+      const normalizedEnop = (constituency.enop_latest - 3) / 5; // center at 3
+      modifier *= 1 + coeff * (factors.enopFactor / 100) * normalizedEnop;
+    }
+
+    if (factors.nCandFactor !== 0 && constituency.n_cand_latest != null) {
+      const coeff = coefficients.nCandFactor || -0.02;
+      const normalizedNCand = (constituency.n_cand_latest - 10) / 20; // center at 10
+      modifier *= 1 + coeff * (factors.nCandFactor / 100) * normalizedNCand;
+    }
+
+    // ── Geographic & structural (constituency-level) ─
+    if (factors.constituencyTypeFactor !== 0) {
+      const coeff = coefficients.constituencyTypeFactor || 0.01;
+      const isReserved = constituency.constituency_type !== 'GEN' ? 1 : 0;
+      if (isReserved && isIncumbent) {
+        modifier *= 1 + coeff * (factors.constituencyTypeFactor / 100);
+      }
+    }
+
+    if (factors.genderFactor !== 0) {
+      // State-level gender effect applied uniformly
+      const coeff = coefficients.genderFactor || -0.02;
+      modifier *= 1 + coeff * (factors.genderFactor / 100) * 0.2;
+    }
+
+    // ── Party strength (state-level) ────────────────
+    if (factors.partyStrengthFactor !== 0) {
+      const coeff = coefficients.partyStrengthFactor || 0.1;
+      if (isIncumbent) {
+        modifier *= 1 + coeff * (factors.partyStrengthFactor / 100);
+      } else {
+        modifier *= 1 - coeff * (factors.partyStrengthFactor / 100) * 0.3;
+      }
+    }
+
+    if (factors.partyVoteShareFactor !== 0) {
+      const coeff = coefficients.partyVoteShareFactor || 0.08;
+      if (isIncumbent) {
+        modifier *= 1 + coeff * (factors.partyVoteShareFactor / 100);
+      } else if (p.position === 2) {
+        modifier *= 1 - coeff * (factors.partyVoteShareFactor / 100) * 0.5;
+      }
+    }
+
+    // ── Turnout change (state-level) ────────────────
+    if (factors.turnoutChange !== 0) {
+      const coeff = coefficients.turnoutChange || 0.15;
+      // Higher turnout generally benefits opposition (non-incumbent)
+      if (isIncumbent) {
+        modifier *= 1 - coeff * (factors.turnoutChange / 100) * 0.5;
+      } else {
+        modifier *= 1 + coeff * (factors.turnoutChange / 100) * 0.3;
+      }
+    }
+
+    // Clamp total modifier to prevent runaway effects
+    modifier = Math.max(0.5, Math.min(2.0, modifier));
+
+    p.voteShare *= modifier;
+  });
+}
+
+/**
+ * Compute normalized Euclidean distance of slider values from defaults (all 0).
+ * Returns a value in [0, 1].
+ */
+function computeSliderDistance(factors: FactorParams): number {
+  const values = Object.values(factors);
+  const ranges = [30, 100, 100, 50, 50, 50, 50, 50, 50, 50, 50, 50]; // max range for each
+  let sumSq = 0;
+  let maxSumSq = 0;
+  for (let i = 0; i < values.length; i++) {
+    const range = ranges[i] || 100;
+    sumSq += (values[i] / range) ** 2;
+    maxSumSq += 1;
+  }
+  return Math.sqrt(sumSq / maxSumSq);
 }
 
 /**
@@ -203,10 +396,78 @@ export function applyNewParty(
 }
 
 /**
+ * Apply alliance vote transfers.
+ *
+ * Within each constituency, for each alliance bloc, transfer the weaker allied
+ * party's votes to the stronger party at the specified transfer efficiency.
+ */
+export function applyAllianceTransfers(
+  results: PredictionResult[],
+  allianceConfig: AllianceBloc[]
+): PredictionResult[] {
+  if (!allianceConfig || allianceConfig.length === 0) return results;
+
+  return results.map((r) => {
+    const parties: PredictionParty[] = r.parties.map((p) => ({ ...p }));
+
+    for (const bloc of allianceConfig) {
+      const efficiency = Math.max(0.5, Math.min(1.0, bloc.transferEfficiency));
+      const allyIndices = parties
+        .map((p, i) => (bloc.parties.includes(p.party) ? i : -1))
+        .filter((i) => i >= 0);
+
+      if (allyIndices.length < 2) continue;
+
+      // Find the strongest ally in this constituency
+      let leadIdx = allyIndices[0];
+      for (const idx of allyIndices) {
+        if (parties[idx].votes > parties[leadIdx].votes) leadIdx = idx;
+      }
+
+      // Transfer votes from non-lead allies to lead
+      for (const idx of allyIndices) {
+        if (idx === leadIdx) continue;
+        const transfer = Math.round(parties[idx].votes * efficiency);
+        parties[leadIdx].votes += transfer;
+        parties[idx].votes -= transfer;
+      }
+    }
+
+    // Recompute vote shares
+    const totalVotes = parties.reduce((s, p) => s + p.votes, 0);
+    parties.forEach((p) => {
+      p.voteShare = totalVotes > 0 ? p.votes / totalVotes : 0;
+    });
+
+    // Sort by votes desc
+    parties.sort((a, b) => b.votes - a.votes);
+
+    const winner = parties[0];
+    const runnerUp = parties[1];
+
+    return {
+      ...r,
+      predicted_winner: winner.party,
+      predicted_winner_votes: winner.votes,
+      predicted_winner_share: winner.voteShare * 100,
+      predicted_runner_up: runnerUp ? runnerUp.party : null,
+      predicted_runner_up_votes: runnerUp ? runnerUp.votes : 0,
+      predicted_margin: winner.votes - (runnerUp ? runnerUp.votes : 0),
+      predicted_margin_pct:
+        totalVotes > 0 ? ((winner.votes - (runnerUp ? runnerUp.votes : 0)) / totalVotes) * 100 : 0,
+      flipped: winner.party !== r.winner_party_latest,
+      parties,
+    };
+  });
+}
+
+/**
  * Aggregate per-constituency results into summary stats.
  */
 export function aggregateResults(predictions: PredictionResult[]): AggregateResult {
   const partySeats: Record<string, number> = {};
+  const partySeatRangeLow: Record<string, number> = {};
+  const partySeatRangeHigh: Record<string, number> = {};
   const partyVoteShares: Record<string, { sum: number; count: number; totalVotes: number }> = {};
   const flipped: FlippedConstituency[] = [];
   let totalSeats = 0;
@@ -217,6 +478,30 @@ export function aggregateResults(predictions: PredictionResult[]): AggregateResu
     totalSeats++;
 
     partySeats[w] = (partySeats[w] || 0) + 1;
+
+    // Compute seat ranges based on error margins
+    // A seat is "safe" for the winner if their low bound > runner-up share
+    const winnerShare = r.predicted_winner_share ?? 0;
+    const runnerUpShare =
+      r.predicted_runner_up_votes && r.valid_votes_next
+        ? (r.predicted_runner_up_votes / r.valid_votes_next) * 100
+        : 0;
+    const errorLow = r.errorMarginLow ?? winnerShare;
+    const isMarginal = errorLow < runnerUpShare + 1; // within error margin
+
+    if (isMarginal && r.predicted_runner_up) {
+      // Winner keeps seat in best case, may lose in worst case
+      partySeatRangeHigh[w] = (partySeatRangeHigh[w] || 0) + 1;
+      partySeatRangeLow[w] = partySeatRangeLow[w] || 0; // +0, might lose
+      // Runner-up might gain this seat
+      partySeatRangeHigh[r.predicted_runner_up] =
+        (partySeatRangeHigh[r.predicted_runner_up] || 0) + 1;
+      partySeatRangeLow[r.predicted_runner_up] = partySeatRangeLow[r.predicted_runner_up] || 0;
+    } else {
+      // Safe seat for winner
+      partySeatRangeLow[w] = (partySeatRangeLow[w] || 0) + 1;
+      partySeatRangeHigh[w] = (partySeatRangeHigh[w] || 0) + 1;
+    }
 
     // Track vote share sums for averaging
     (r.parties || []).forEach((p) => {
@@ -244,6 +529,8 @@ export function aggregateResults(predictions: PredictionResult[]): AggregateResu
     .map((party) => ({
       party,
       seats: partySeats[party] || 0,
+      seatRangeLow: partySeatRangeLow[party] || 0,
+      seatRangeHigh: partySeatRangeHigh[party] || 0,
       avgVoteShare: partyVoteShares[party]
         ? partyVoteShares[party].sum / partyVoteShares[party].count
         : 0,

@@ -155,6 +155,12 @@ export default function PredictionConstituencyTable({
                 <span className="text-neutral-500">→</span>
                 <span style={{ color: partyColor(r.predicted_winner) || '#9b59b6' }}>
                   {r.predicted_winner} {(r.predicted_margin_pct || 0).toFixed(1)}%
+                  {r.errorMarginLow != null && r.errorMarginHigh != null && (
+                    <span className="text-neutral-500 text-[10px]">
+                      {' '}
+                      ±{((r.errorMarginHigh - r.errorMarginLow) / 2).toFixed(0)}%
+                    </span>
+                  )}
                 </span>
                 <span
                   className={`font-mono ${marginDelta > 0 ? 'text-success' : marginDelta < 0 ? 'text-error' : 'text-neutral-500'}`}
@@ -254,6 +260,12 @@ export default function PredictionConstituencyTable({
                   </td>
                   <td style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>
                     {(r.predicted_margin_pct || 0).toFixed(1)}%
+                    {r.errorMarginLow != null && r.errorMarginHigh != null && (
+                      <span style={{ color: '#666', fontSize: 10 }}>
+                        {' '}
+                        ±{((r.errorMarginHigh - r.errorMarginLow) / 2).toFixed(0)}
+                      </span>
+                    )}
                   </td>
                   <td
                     style={{
