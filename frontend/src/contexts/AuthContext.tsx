@@ -7,7 +7,7 @@ interface AuthContextValue {
   loading: boolean;
   login: (mobile: string, firebaseIdToken: string) => Promise<User>;
   logout: () => void;
-  linkGoogle: (googleIdToken: string, googleAccessToken: string) => Promise<void>;
+  linkGoogle: (googleIdToken: string, googleAccessToken: string | null) => Promise<void>;
   updateProfile: (data: UserProfile) => Promise<void>;
 }
 
@@ -40,11 +40,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return result.user;
   }, []);
 
-  const linkGoogle = useCallback(async (googleIdToken: string, googleAccessToken: string) => {
-    await api.linkGoogle(googleIdToken, googleAccessToken);
-    const updated = await api.getMe();
-    setUser(updated);
-  }, []);
+  const linkGoogle = useCallback(
+    async (googleIdToken: string, googleAccessToken: string | null) => {
+      await api.linkGoogle(googleIdToken, googleAccessToken);
+      const updated = await api.getMe();
+      setUser(updated);
+    },
+    []
+  );
 
   const logout = useCallback(() => {
     api.setToken(null);

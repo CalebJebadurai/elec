@@ -54,7 +54,7 @@ export default function LoginModal({ open, onOpenChange }: LoginModalProps) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [consent, setConsent] = useState(false);
-  const recaptchaRef = useRef<ReturnType<typeof RecaptchaVerifier> | null>(null);
+  const recaptchaRef = useRef<RecaptchaVerifier | null>(null);
   const confirmationResultRef = useRef<{
     confirm: (code: string) => Promise<{ user: { getIdToken: () => Promise<string> } }>;
   } | null>(null);

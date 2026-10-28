@@ -21,17 +21,36 @@ def anyio_backend():
     return "asyncio"
 
 
-@pytest.fixture()
-async def client():
-    """Async HTTP test client that talks to the FastAPI app.
+@pytest.fixture(scope="session")
+async def app():
+    """The FastAPI app with its startup run once, as in production.
 
-    Uses the real app but patches the DB pool to avoid needing a live database
-    for unit-level route tests. For integration tests that need the DB,
-    use a separate fixture with a test database.
+    Startup creates the tables (tcpd_ae, users, bookmarks, ...) in the test
+    database; ASGITransport alone never runs it.
     """
-    from main import app
+    from database import get_pool
+    from main import app as fastapi_app
+    async with fastapi_app.router.lifespan_context(fastapi_app):
+        # The user behind auth_headers / admin_headers (user_id=1), so their writes have an owner.
+        pool = await get_pool()
+        await pool.execute(
+            "INSERT INTO users (id, mobile) VALUES (1, '+910000000001') ON CONFLICT (id) DO NOTHING"
+        )
+        yield fastapi_app
+
+
+@pytest.fixture()
+async def client(app):
+    """Async HTTP test client that talks to the FastAPI app."""
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+    # Behave like the frontend: send the double-submit CSRF cookie and header on every request.
+    csrf = "test-csrf-token"
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+        cookies={"csrf_token": csrf},
+        headers={"X-CSRF-Token": csrf},
+    ) as ac:
         yield ac
 
 

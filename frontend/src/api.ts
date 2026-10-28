@@ -179,7 +179,10 @@ export const api = {
   verifyOtp: (mobile: string, firebase_id_token: string): Promise<AuthResponse> =>
     post(`${V1}/auth/verify-otp`, { mobile, firebase_id_token }),
   logout: (): Promise<{ ok: boolean }> => post(`${V1}/auth/logout`, {}),
-  linkGoogle: (google_id_token: string, google_access_token: string): Promise<{ ok: boolean }> =>
+  linkGoogle: (
+    google_id_token: string,
+    google_access_token: string | null
+  ): Promise<{ ok: boolean }> =>
     post(`${V1}/auth/google-link`, { google_id_token, google_access_token }),
   getMe: (): Promise<User> => get(`${V1}/auth/me`),
   updateMe: (data: UserProfile): Promise<User> => put(`${V1}/auth/me`, data),

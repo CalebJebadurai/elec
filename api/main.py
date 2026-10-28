@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 
 import sentry_sdk
 
-from fastapi import FastAPI, Request, Response, APIRouter
+from fastapi import FastAPI, HTTPException, Request, Response, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, ORJSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware

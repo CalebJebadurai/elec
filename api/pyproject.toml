@@ -1,3 +1,5 @@
 [tool.pytest.ini_options]
-asyncio_mode = "auto"
+# The tests are all @pytest.mark.anyio; "strict" stops pytest-asyncio from also claiming
+# their async fixtures and running them on a second event loop.
+asyncio_mode = "strict"
 testpaths = ["tests"]
