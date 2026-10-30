@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { Link } from 'react-router-dom';
 import { api } from '../api';
 import { normalizeParty, partyColor } from '../constants';
 import { useStateSelection } from '../contexts/StateContext';
@@ -183,8 +184,16 @@ export default function ConstituencyList({ onSelect }) {
         </select>
       </div>
 
-      <div className="inline-block bg-neutral-900 text-neutral-300 text-xs px-3 py-1 rounded-full mb-3">
-        {filtered.length} constituencies
+      <div className="flex flex-wrap items-center gap-3 mb-3">
+        <div className="inline-block bg-neutral-900 text-neutral-300 text-xs px-3 py-1 rounded-full">
+          {filtered.length} constituencies
+        </div>
+        <Link
+          to={`/state/${selectedState}/marginal`}
+          className="text-xs text-primary-300 underline md:hidden"
+        >
+          See marginal seats →
+        </Link>
       </div>
 
       {/* Mobile card view — virtualized */}

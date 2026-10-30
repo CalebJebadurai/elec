@@ -20,6 +20,7 @@ const QuickStart = lazy(() => import('./components/QuickStart'));
 const GlossaryPage = lazy(() => import('./components/GlossaryPage'));
 const LearnPage = lazy(() => import('./components/LearnPage'));
 const MethodologyPage = lazy(() => import('./components/MethodologyPage'));
+const MarginalSeats = lazy(() => import('./components/MarginalSeats'));
 import ElectionTypeToggle from './components/ElectionTypeToggle';
 import Disclaimer from './components/Disclaimer';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -403,6 +404,14 @@ export default function App() {
               >
                 Constituencies
               </button>
+              <button
+                className={`px-5 py-2 rounded-md text-sm transition-all cursor-pointer border ${path.endsWith('/marginal') ? 'bg-primary-400 text-black border-primary-400 font-semibold' : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:border-primary-400 hover:text-neutral-200'}`}
+                onClick={() => {
+                  navigate(`/state/${selectedState}/marginal`);
+                }}
+              >
+                Marginal Seats
+              </button>
               {electionType === 'AE' && (
                 <button
                   className={`px-5 py-2 rounded-md text-sm transition-all cursor-pointer border ${path.endsWith('/predictions') ? 'bg-primary-400 text-black border-primary-400 font-semibold' : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:border-primary-400 hover:text-neutral-200'}`}
@@ -580,6 +589,7 @@ export default function App() {
                       />
                     }
                   />
+                  <Route path="/state/:stateName/marginal" element={<MarginalSeats />} />
                   <Route
                     path="/state/:stateName/constituencies/:name"
                     element={
