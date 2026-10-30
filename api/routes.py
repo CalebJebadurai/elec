@@ -1,3 +1,5 @@
+from itertools import pairwise
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
 
@@ -432,9 +434,7 @@ async def candidate_history(
         for r in rows
     ]
     parties_in_order = [_normalize_party(r.party) for r in records]
-    switches = sum(
-        1 for a, b in zip(parties_in_order, parties_in_order[1:], strict=False) if a != b
-    )
+    switches = sum(1 for a, b in pairwise(parties_in_order) if a != b)
     distinct: list[str] = []
     for p in parties_in_order:
         if p not in distinct:
