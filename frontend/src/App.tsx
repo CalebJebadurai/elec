@@ -17,6 +17,7 @@ const LoginModal = lazy(() => import('./components/LoginModal'));
 const UserMenu = lazy(() => import('./components/UserMenu'));
 const SaveBookmarkModal = lazy(() => import('./components/SaveBookmarkModal'));
 const QuickStart = lazy(() => import('./components/QuickStart'));
+const GlossaryPage = lazy(() => import('./components/GlossaryPage'));
 import ElectionTypeToggle from './components/ElectionTypeToggle';
 import Disclaimer from './components/Disclaimer';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -646,6 +647,7 @@ export default function App() {
                   <Route path="/terms" element={<TermsOfService />} />
                   <Route path="/pricing" element={<PricingPage />} />
                   <Route path="/support" element={<SupportPage />} />
+                  <Route path="/glossary" element={<GlossaryPage />} />
 
                   {/* Backward compatibility redirects */}
                   <Route
@@ -715,6 +717,17 @@ export default function App() {
                 }}
               >
                 Terms of Service
+              </a>
+              {' · '}
+              <a
+                href="/glossary"
+                className="text-primary-400 hover:underline"
+                onClick={(e) => {
+                  e.preventDefault();
+                  navigate('/glossary');
+                }}
+              >
+                Glossary
               </a>
               {' · '}
               <a
