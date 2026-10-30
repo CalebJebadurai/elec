@@ -18,6 +18,7 @@ import { partyColor, normalizeParty } from '../constants';
 import { useStateSelection } from '../contexts/StateContext';
 import ConstituencySummaryCard from './ConstituencySummaryCard';
 import Term from './Term';
+import TurnoutComparison from './TurnoutComparison';
 import DataSourceStamp from './DataSourceStamp';
 
 export default function ConstituencyDetail({ name, onBack }) {
@@ -191,6 +192,8 @@ export default function ConstituencyDetail({ name, onBack }) {
           </LineChart>
         </ResponsiveContainer>
       </div>
+
+      <TurnoutComparison results={results} state={selectedState} electionType={electionType} />
 
       <h3 className="text-base font-semibold text-primary-400 mt-6 mb-3">Election Results</h3>
       <div className="overflow-x-auto">
