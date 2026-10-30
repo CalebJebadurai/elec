@@ -16,7 +16,7 @@ const SupportPage = lazy(() => import('./components/SupportPage'));
 const LoginModal = lazy(() => import('./components/LoginModal'));
 const UserMenu = lazy(() => import('./components/UserMenu'));
 const SaveBookmarkModal = lazy(() => import('./components/SaveBookmarkModal'));
-const QuickStart = lazy(() => import('./components/QuickStart'));
+const Landing = lazy(() => import('./components/Landing'));
 const GlossaryPage = lazy(() => import('./components/GlossaryPage'));
 const LearnPage = lazy(() => import('./components/LearnPage'));
 const MethodologyPage = lazy(() => import('./components/MethodologyPage'));
@@ -49,6 +49,8 @@ import { pageTransition } from './lib/motion';
 import { isLowData, useLowData } from './lib/lowData';
 import { THEMES, useTheme, type Theme } from './lib/theme';
 import Skeleton from './components/Skeleton';
+import Logo from './components/Logo';
+import { useImmersive } from './lib/immersive';
 import type { StatsSummary, PredictionDataResponse, AppPredictionParams } from './types';
 
 // Prefetch heavy route chunks during idle time (skipped in low-data mode)
@@ -58,6 +60,74 @@ if (typeof window !== 'undefined' && 'requestIdleCallback' in window && !isLowDa
     import('./components/StateOverview');
     import('./components/ConstituencyList');
   });
+}
+
+function IconButton({
+  label,
+  icon,
+  onClick,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onClick={onClick}
+      className="shrink-0 grid place-items-center w-9 h-9 rounded-full border border-neutral-800 bg-neutral-900/80 text-neutral-300 hover:text-white hover:border-neutral-600 transition-colors cursor-pointer"
+    >
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        {icon}
+      </svg>
+    </button>
+  );
+}
+
+function FooterLinks({ title, links }: { title: string; links: [string, string][] }) {
+  const navigate = useNavigate();
+  return (
+    <div>
+      <h2 className="font-sans text-xs font-semibold uppercase tracking-[0.14em] text-neutral-300 mb-3">
+        {title}
+      </h2>
+      <ul className="space-y-2">
+        {links.map(([href, label]) => {
+          const external = href.startsWith('http');
+          return (
+            <li key={href}>
+              <a
+                href={href}
+                className="hover:text-white transition-colors"
+                {...(external
+                  ? { target: '_blank', rel: 'noopener noreferrer' }
+                  : {
+                      onClick: (e: React.MouseEvent) => {
+                        e.preventDefault();
+                        navigate(href);
+                      },
+                    })}
+              >
+                {label}
+              </a>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
 }
 
 const Loading = () => (
@@ -98,6 +168,7 @@ export default function App() {
   const [lowData, setLowData] = useLowData();
   const [cbSafe, setCbSafe] = useState(isColourBlindSafe);
   const [theme, setTheme] = useTheme();
+  const [immersive, setImmersive] = useImmersive();
 
   // App-level stats (drives dynamic headings)
   const [stats, setStats] = useState<StatsSummary | null>(null);
@@ -294,7 +365,34 @@ export default function App() {
   // Determine active nav from path
   const path = location.pathname;
   const isNational = path.startsWith('/national');
-  const mode = isNational ? 'national' : 'state';
+  const isLanding = path === '/';
+  const mode = isNational ? 'national' : isLanding ? null : 'state';
+  const stateTabs = [
+    { key: 'overview', label: 'Overview', match: (p: string) => p.endsWith('/overview') },
+    {
+      key: 'constituencies',
+      label: 'Constituencies',
+      match: (p: string) => p.includes('/constituencies'),
+    },
+    { key: 'marginal', label: 'Marginal seats', match: (p: string) => p.endsWith('/marginal') },
+    { key: 'claim-check', label: 'Claim check', match: (p: string) => p.endsWith('/claim-check') },
+    ...(electionType === 'AE'
+      ? [
+          {
+            key: 'predictions',
+            label: `${stats?.next_election_year || 'Next'} simulator`,
+            match: (p: string) => p.endsWith('/predictions'),
+            auth: true,
+          },
+        ]
+      : []),
+    {
+      key: 'community',
+      label: 'Community',
+      match: (p: string) => p.endsWith('/community'),
+      auth: true,
+    },
+  ];
 
   // Sync state from URL for /state/:name/* routes
   useEffect(() => {
@@ -312,155 +410,171 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <div className="app min-h-screen bg-neutral-950 text-neutral-200 px-4 pb-16 md:px-8 md:pb-0">
+      <div
+        className={`app app-shell bg-transparent text-neutral-200 pb-20 md:pb-0 ${immersive ? 'is-immersive' : ''}`}
+      >
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:bg-neutral-900 focus:text-primary-400 focus:px-4 focus:py-2 focus:rounded"
         >
           Skip to main content
         </a>
-        <header
-          role="banner"
-          className="border-b border-neutral-800 px-2 py-4 mb-4 md:px-0 md:py-6 md:mb-5"
-        >
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="min-w-0">
-              <h1 className="text-xl font-semibold tracking-tight text-white md:text-2xl lg:text-3xl">
-                {isNational
-                  ? 'National Election Dashboard'
-                  : `${stats?.state_name || 'Election'}${electionType === 'GE' ? ' Lok Sabha' : ''} Election Analysis`}
-              </h1>
-              <p className="text-xs text-neutral-400 mt-1 md:text-sm">
-                {isNational
-                  ? 'Cross-state election analysis across India'
-                  : stats
-                    ? `${electionType === 'GE' ? 'Lok Sabha' : 'Assembly'} Elections ${stats.year_min}–${stats.year_max} · ${stats.total_constituencies} Constituencies · ${stats.general_years.length} General Elections`
-                    : 'Loading…'}
-              </p>
+        <header role="banner" className="app-header glass safe-top sticky top-0 z-40">
+          <div className="page-width flex items-center gap-2 px-4 h-14 md:h-16 md:gap-3 md:px-8">
+            <a
+              href="/"
+              aria-label="Election Swings home"
+              className="shrink-0 rounded-lg"
+              onClick={(e) => {
+                e.preventDefault();
+                navigate(user ? '/national' : '/');
+              }}
+            >
+              <Logo compact />
+            </a>
+            <div
+              className="scope-switch hidden md:flex ml-4 p-1 rounded-full bg-neutral-900/80 border border-neutral-800"
+              role="group"
+              aria-label="Scope"
+            >
+              {(
+                [
+                  ['national', 'National', '/national'],
+                  ['state', 'State', `/state/${selectedState}/overview`],
+                ] as const
+              ).map(([key, label, to]) => (
+                <button
+                  key={key}
+                  aria-pressed={mode === key}
+                  className={`px-4 h-8 rounded-full text-sm transition-colors cursor-pointer ${mode === key ? 'bg-saffron text-black font-semibold shadow-sm' : 'text-neutral-400 hover:text-white'}`}
+                  onClick={() => navigate(to)}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
-            <div className="flex flex-wrap items-center gap-2 md:flex-nowrap md:gap-3">
-              {/* Mode switcher */}
-              <div className="flex border border-neutral-700 rounded-lg overflow-hidden">
-                <button
-                  className={`px-3 py-2 text-sm min-h-[44px] md:min-h-0 md:py-1.5 transition-colors ${mode === 'national' ? 'bg-saffron text-black font-semibold' : 'bg-transparent text-neutral-400 hover:bg-neutral-800 hover:text-white'}`}
-                  onClick={() => navigate('/national')}
-                >
-                  National
-                </button>
-                <button
-                  className={`px-3 py-2 text-sm min-h-[44px] md:min-h-0 md:py-1.5 transition-colors ${mode === 'state' ? 'bg-saffron text-black font-semibold' : 'bg-transparent text-neutral-400 hover:bg-neutral-800 hover:text-white'}`}
-                  onClick={() => navigate(`/state/${selectedState}/overview`)}
-                >
-                  State Analysis
-                </button>
+            <div className="flex-1" />
+            {!isNational && !isLanding && (
+              <select
+                value={selectedState}
+                aria-label="Select state"
+                className="bg-neutral-900/80 border border-neutral-800 text-neutral-100 rounded-full pl-3 pr-8 h-9 text-sm w-[9.5rem] sm:w-auto sm:max-w-[13rem] cursor-pointer hover:border-neutral-600 transition-colors"
+                onChange={(e) => {
+                  selectState(e.target.value);
+                  setPredData(null);
+                  setPredParams({ ...DEFAULT_PREDICTION_PARAMS });
+                  navigate(`/state/${e.target.value}/overview`);
+                }}
+              >
+                {states
+                  .slice()
+                  .sort((a, b) => a.display_name.localeCompare(b.display_name))
+                  .map((s) => (
+                    <option key={s.state_name} value={s.state_name}>
+                      {s.display_name}
+                    </option>
+                  ))}
+              </select>
+            )}
+            {!isNational && !isLanding && (
+              <div className="hidden lg:block">
+                <ElectionTypeToggle />
+              </div>
+            )}
+            <IconButton
+              label="Full screen"
+              onClick={() => setImmersive(true)}
+              icon={<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />}
+            />
+            {user ? (
+              <Suspense fallback={null}>
+                <UserMenu />
+              </Suspense>
+            ) : (
+              <button
+                className="bg-primary-400 text-black font-semibold px-4 h-9 rounded-full text-sm hover:bg-primary-300 transition-colors cursor-pointer shrink-0"
+                onClick={() => setShowLogin(true)}
+              >
+                Sign in
+              </button>
+            )}
+          </div>
+          <div className="tricolour-rule" aria-hidden="true" />
+        </header>
+
+        {!isLanding && (
+          <div className="page-hero page-width px-4 pt-5 pb-3 md:px-8 md:pt-8 md:pb-4">
+            <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+              <div className="min-w-0">
+                <p className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-saffron mb-1.5">
+                  {isNational
+                    ? 'All India'
+                    : electionType === 'GE'
+                      ? 'Lok Sabha · General elections'
+                      : 'Vidhan Sabha · Assembly elections'}
+                </p>
+                <h1 className="text-2xl font-semibold text-white md:text-3xl lg:text-4xl">
+                  {isNational
+                    ? 'National election dashboard'
+                    : `${stats?.state_name || 'Election'} election analysis`}
+                </h1>
+                <p className="header-subtitle text-sm text-neutral-400 mt-1.5">
+                  {isNational ? (
+                    'Every state, every party, every election since independence'
+                  ) : stats ? (
+                    <>
+                      <span className="tabular text-neutral-200">
+                        {stats.year_min}–{stats.year_max}
+                      </span>
+                      {' · '}
+                      <span className="tabular text-neutral-200">
+                        {stats.total_constituencies}
+                      </span>{' '}
+                      constituencies ·{' '}
+                      <span className="tabular text-neutral-200">{stats.general_years.length}</span>{' '}
+                      general elections
+                    </>
+                  ) : (
+                    'Loading…'
+                  )}
+                </p>
               </div>
               {!isNational && (
-                <>
-                  <select
-                    value={selectedState}
-                    aria-label="Select state"
-                    className="bg-surface border border-neutral-800 text-neutral-200 rounded-md px-3 py-2 text-sm max-w-[180px] min-h-[44px] md:min-h-0 md:py-1.5 cursor-pointer"
-                    onChange={(e) => {
-                      selectState(e.target.value);
-                      setPredData(null);
-                      setPredParams({ ...DEFAULT_PREDICTION_PARAMS });
-                      navigate(`/state/${e.target.value}/overview`);
-                    }}
-                  >
-                    {states
-                      .slice()
-                      .sort((a, b) => a.display_name.localeCompare(b.display_name))
-                      .map((s) => (
-                        <option key={s.state_name} value={s.state_name}>
-                          {s.display_name}
-                        </option>
-                      ))}
-                  </select>
+                <div className="lg:hidden">
                   <ElectionTypeToggle />
-                </>
-              )}
-              {user ? (
-                <Suspense fallback={null}>
-                  <UserMenu />
-                </Suspense>
-              ) : (
-                <button
-                  className="bg-primary-400 text-black font-semibold px-5 py-2 rounded-md text-sm min-h-[44px] md:min-h-0 md:py-2 hover:opacity-90 transition-opacity cursor-pointer"
-                  onClick={() => setShowLogin(true)}
-                >
-                  Sign In
-                </button>
+                </div>
               )}
             </div>
+            {!isNational && (
+              <nav
+                role="navigation"
+                aria-label="State navigation"
+                className="scroll-x -mx-4 px-4 mt-5 flex gap-1.5 md:mx-0 md:px-0 md:gap-1 md:border-b md:border-neutral-800"
+              >
+                {stateTabs.map((t) => {
+                  const active = t.match(path);
+                  return (
+                    <button
+                      key={t.key}
+                      aria-current={active ? 'page' : undefined}
+                      className={`shrink-0 whitespace-nowrap text-sm cursor-pointer transition-colors h-9 px-4 rounded-full border md:h-11 md:px-3.5 md:rounded-none md:border-0 md:border-b-2 md:-mb-px ${active ? 'bg-primary-400 text-black border-primary-400 font-semibold md:bg-transparent md:text-white md:border-primary-400' : 'bg-neutral-900/70 border-neutral-800 text-neutral-400 hover:text-white md:bg-transparent md:border-transparent'}`}
+                      onClick={() => {
+                        if (t.auth && !user) {
+                          setShowLogin(true);
+                          return;
+                        }
+                        navigate(`/state/${selectedState}/${t.key}`);
+                      }}
+                    >
+                      {t.label}
+                    </button>
+                  );
+                })}
+              </nav>
+            )}
           </div>
-          {!isNational && (
-            <nav
-              role="navigation"
-              aria-label="State navigation"
-              className="hidden md:flex justify-center gap-2 mt-3"
-            >
-              <button
-                className={`px-5 py-2 rounded-md text-sm transition-all cursor-pointer border ${path.endsWith('/overview') ? 'bg-primary-400 text-black border-primary-400 font-semibold' : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:border-primary-400 hover:text-neutral-200'}`}
-                onClick={() => {
-                  navigate(`/state/${selectedState}/overview`);
-                }}
-              >
-                State Overview
-              </button>
-              <button
-                className={`px-5 py-2 rounded-md text-sm transition-all cursor-pointer border ${path.includes('/constituencies') ? 'bg-primary-400 text-black border-primary-400 font-semibold' : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:border-primary-400 hover:text-neutral-200'}`}
-                onClick={() => {
-                  navigate(`/state/${selectedState}/constituencies`);
-                }}
-              >
-                Constituencies
-              </button>
-              <button
-                className={`px-5 py-2 rounded-md text-sm transition-all cursor-pointer border ${path.endsWith('/marginal') ? 'bg-primary-400 text-black border-primary-400 font-semibold' : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:border-primary-400 hover:text-neutral-200'}`}
-                onClick={() => {
-                  navigate(`/state/${selectedState}/marginal`);
-                }}
-              >
-                Marginal Seats
-              </button>
-              <button
-                className={`px-5 py-2 rounded-md text-sm transition-all cursor-pointer border ${path.endsWith('/claim-check') ? 'bg-primary-400 text-black border-primary-400 font-semibold' : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:border-primary-400 hover:text-neutral-200'}`}
-                onClick={() => {
-                  navigate(`/state/${selectedState}/claim-check`);
-                }}
-              >
-                Claim Check
-              </button>
-              {electionType === 'AE' && (
-                <button
-                  className={`px-5 py-2 rounded-md text-sm transition-all cursor-pointer border ${path.endsWith('/predictions') ? 'bg-primary-400 text-black border-primary-400 font-semibold' : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:border-primary-400 hover:text-neutral-200'}`}
-                  onClick={() => {
-                    if (!user) {
-                      setShowLogin(true);
-                      return;
-                    }
-                    navigate(`/state/${selectedState}/predictions`);
-                  }}
-                >
-                  {stats?.next_election_year || 'Next'} Simulator
-                </button>
-              )}
-              <button
-                className={`px-5 py-2 rounded-md text-sm transition-all cursor-pointer border ${path.endsWith('/community') ? 'bg-primary-400 text-black border-primary-400 font-semibold' : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:border-primary-400 hover:text-neutral-200'}`}
-                onClick={() => {
-                  if (!user) {
-                    setShowLogin(true);
-                    return;
-                  }
-                  navigate(`/state/${selectedState}/community`);
-                }}
-              >
-                Community
-              </button>
-            </nav>
-          )}
-        </header>
-        <main id="main-content" role="main">
+        )}
+        <main id="main-content" role="main" className="page-width px-4 md:px-8">
           <Suspense fallback={<Loading />}>
             <AnimatePresence mode="wait">
               <motion.div key={`${path}:${cbSafe}`} {...(lowData ? {} : pageTransition)}>
@@ -472,117 +586,7 @@ export default function App() {
                       !loading && user ? (
                         <Navigate to="/national" replace />
                       ) : (
-                        <div className="relative text-center py-12 px-4 md:py-20">
-                          <div className="absolute inset-0 bg-gradient-to-b from-primary-900/20 to-transparent rounded-2xl pointer-events-none" />
-                          <div className="relative max-w-2xl mx-auto">
-                            <span className="inline-block bg-primary-900/40 text-primary-300 text-xs font-medium px-3 py-1 rounded-full mb-4">
-                              Free &amp; Open Source
-                            </span>
-                            <h2 className="text-2xl font-bold text-white mb-3 md:text-4xl lg:text-5xl">
-                              Explore {stats?.total_years || ''} Years of
-                              <br />
-                              <span className="text-primary-300">Election Data</span>
-                            </h2>
-                            <p className="text-neutral-400 text-sm mb-6 max-w-lg mx-auto md:text-base">
-                              Dive into {stats?.total_constituencies || '—'} constituencies, track
-                              party swings, run what-if predictions, and share scenarios with the
-                              community.
-                            </p>
-                            <button
-                              className="bg-primary-400 text-black font-semibold px-8 py-3 rounded-lg text-base min-h-[44px] hover:opacity-90 transition-opacity cursor-pointer"
-                              onClick={() => setShowLogin(true)}
-                            >
-                              Get Started
-                              <span className="ml-2">→</span>
-                            </button>
-                          </div>
-                          <QuickStart />
-                          <p className="relative text-xs text-neutral-400 mt-3">
-                            New to elections?{' '}
-                            <button
-                              type="button"
-                              className="text-primary-300 underline cursor-pointer"
-                              onClick={() => navigate('/learn')}
-                            >
-                              Learn how seats are won
-                            </button>{' '}
-                            · First-time voter?{' '}
-                            <button
-                              type="button"
-                              className="text-primary-300 underline cursor-pointer"
-                              onClick={() => navigate('/vote')}
-                            >
-                              How to register
-                            </button>
-                          </p>
-                          <div className="grid grid-cols-2 gap-3 mt-10 md:grid-cols-4 md:gap-4">
-                            <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 text-center">
-                              <div className="text-2xl mb-2">📊</div>
-                              <h3 className="text-sm font-semibold text-white mb-1">
-                                State Overview
-                              </h3>
-                              <p className="text-xs text-neutral-400">
-                                Vote share trends, party dominance, and turnout patterns across
-                                decades.
-                              </p>
-                            </div>
-                            <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 text-center">
-                              <div className="text-2xl mb-2">🗺️</div>
-                              <h3 className="text-sm font-semibold text-white mb-1">
-                                National Dashboard
-                              </h3>
-                              <p className="text-xs text-neutral-400">
-                                Interactive India map, party strength, state comparison, and
-                                election timeline.
-                              </p>
-                            </div>
-                            <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 text-center">
-                              <div className="text-2xl mb-2">🔮</div>
-                              <h3 className="text-sm font-semibold text-white mb-1">
-                                {stats?.next_election_year || 'Next'} Scenario Simulator
-                              </h3>
-                              <p className="text-xs text-neutral-400">
-                                Try what-if scenarios with anti-incumbency, turnout, and
-                                hypothetical new parties. Simulations, not forecasts.
-                              </p>
-                            </div>
-                            <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 text-center">
-                              <div className="text-2xl mb-2">👥</div>
-                              <h3 className="text-sm font-semibold text-white mb-1">Community</h3>
-                              <p className="text-xs text-neutral-400">
-                                Share your prediction scenarios and vote on others' analyses.
-                              </p>
-                            </div>
-                          </div>
-                          {stats && (
-                            <div className="grid grid-cols-2 gap-3 mt-6 md:grid-cols-4">
-                              <div className="bg-neutral-900/60 border border-neutral-800 rounded-lg p-3 text-center">
-                                <span className="block text-xl font-bold text-primary-300">
-                                  {stats.general_years.length}
-                                </span>
-                                <span className="text-xs text-neutral-400">Elections</span>
-                              </div>
-                              <div className="bg-neutral-900/60 border border-neutral-800 rounded-lg p-3 text-center">
-                                <span className="block text-xl font-bold text-primary-300">
-                                  {stats.total_constituencies}
-                                </span>
-                                <span className="text-xs text-neutral-400">Constituencies</span>
-                              </div>
-                              <div className="bg-neutral-900/60 border border-neutral-800 rounded-lg p-3 text-center">
-                                <span className="block text-xl font-bold text-primary-300">
-                                  {stats.total_parties}
-                                </span>
-                                <span className="text-xs text-neutral-400">Parties</span>
-                              </div>
-                              <div className="bg-neutral-900/60 border border-neutral-800 rounded-lg p-3 text-center">
-                                <span className="block text-xl font-bold text-primary-300">
-                                  {((stats.total_electors_latest ?? 0) / 1e6).toFixed(0)}M
-                                </span>
-                                <span className="text-xs text-neutral-400">Electors</span>
-                              </div>
-                            </div>
-                          )}
-                        </div>
+                        <Landing stats={stats} onGetStarted={() => setShowLogin(true)} />
                       )
                     }
                   />
@@ -733,150 +737,126 @@ export default function App() {
             </AnimatePresence>
           </Suspense>
         </main>
-        <footer className="border-t border-neutral-800 mt-8 py-6 text-center text-xs text-neutral-400">
-          <div className="max-w-3xl mx-auto px-4 space-y-2">
-            <p>
-              Data:{' '}
-              <a
-                href="https://tcpd.ashoka.edu.in/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary-400 hover:underline"
-              >
-                Trivedi Centre for Political Data (TCPD), Ashoka University
-              </a>{' '}
-              · Download the original data from{' '}
-              <a
-                href="https://lokdhaba.ashoka.edu.in/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary-400 hover:underline"
-              >
-                Lok Dhaba
-              </a>
-            </p>
-            <p>
-              This tool is for analytical exploration only. Predictions are mathematical
-              simulations, not electoral forecasts. Not affiliated with the Election Commission of
-              India. Thanks Afrah for motivation!!!
-            </p>
-            <p className="space-x-1">
-              <a
-                href="/privacy"
-                className="text-primary-400 hover:underline"
-                onClick={(e) => {
-                  e.preventDefault();
-                  navigate('/privacy');
-                }}
-              >
-                Privacy Policy
-              </a>
-              {' · '}
-              <a
-                href="/terms"
-                className="text-primary-400 hover:underline"
-                onClick={(e) => {
-                  e.preventDefault();
-                  navigate('/terms');
-                }}
-              >
-                Terms of Service
-              </a>
-              {' · '}
-              <a
-                href="/vote"
-                className="text-primary-400 hover:underline"
-                onClick={(e) => {
-                  e.preventDefault();
-                  navigate('/vote');
-                }}
-              >
-                Register to vote
-              </a>
-              {' · '}
-              <a
-                href="/methodology"
-                className="text-primary-400 hover:underline"
-                onClick={(e) => {
-                  e.preventDefault();
-                  navigate('/methodology');
-                }}
-              >
-                Methodology
-              </a>
-              {' · '}
-              <a
-                href="/learn"
-                className="text-primary-400 hover:underline"
-                onClick={(e) => {
-                  e.preventDefault();
-                  navigate('/learn');
-                }}
-              >
-                Learn
-              </a>
-              {' · '}
-              <a
-                href="/glossary"
-                className="text-primary-400 hover:underline"
-                onClick={(e) => {
-                  e.preventDefault();
-                  navigate('/glossary');
-                }}
-              >
-                Glossary
-              </a>
-              {' · '}
-              <a
-                href="https://github.com/cnickson/elec"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary-400 hover:underline"
-              >
-                Source Code
-              </a>
-              {' · '}
-              Open Source under MIT License
-            </p>
-            <p>
-              <button
-                type="button"
-                aria-pressed={lowData}
-                onClick={() => setLowData(!lowData)}
-                className="text-primary-400 hover:underline cursor-pointer min-h-[44px] md:min-h-0"
-              >
-                Low-data mode: {lowData ? 'On' : 'Off'}
-              </button>
-              {' · '}
-              <button
-                type="button"
-                aria-pressed={cbSafe}
-                onClick={() => {
-                  setColourBlindSafe(!cbSafe);
-                  setCbSafe(!cbSafe);
-                }}
-                className="text-primary-400 hover:underline cursor-pointer min-h-[44px] md:min-h-0"
-              >
-                Colour-blind-safe colours: {cbSafe ? 'On' : 'Off'}
-              </button>
-              {' · '}
-              <label>
-                Theme:{' '}
-                <select
-                  value={theme}
-                  onChange={(e) => setTheme(e.target.value as Theme)}
-                  className="bg-neutral-900 border border-neutral-800 text-neutral-200 rounded px-2 py-1 text-xs cursor-pointer min-h-[44px] md:min-h-0"
+        <footer className="app-footer border-t border-neutral-800 mt-16 bg-neutral-950/60">
+          <div className="page-width px-4 py-10 md:px-8 grid gap-8 text-sm text-neutral-400 md:grid-cols-[1.4fr_1fr_1fr_1.2fr]">
+            <div className="space-y-3">
+              <Logo />
+              <p className="text-xs leading-relaxed max-w-sm">
+                For analytical exploration only. Simulations are mathematical scenarios, not
+                electoral forecasts. Not affiliated with the Election Commission of India. Thanks
+                Afrah for motivation!!!
+              </p>
+              <p className="text-xs">
+                Data:{' '}
+                <a
+                  href="https://tcpd.ashoka.edu.in/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary-300 hover:underline"
                 >
-                  {THEMES.map((t) => (
-                    <option key={t.value} value={t.value}>
-                      {t.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </p>
+                  Trivedi Centre for Political Data (TCPD), Ashoka University
+                </a>
+                {' · '}
+                <a
+                  href="https://lokdhaba.ashoka.edu.in/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary-300 hover:underline"
+                >
+                  Lok Dhaba
+                </a>
+              </p>
+            </div>
+            <FooterLinks
+              title="Learn"
+              links={[
+                ['/learn', 'Learn'],
+                ['/glossary', 'Glossary'],
+                ['/methodology', 'Methodology'],
+                ['/vote', 'Register to vote'],
+              ]}
+            />
+            <FooterLinks
+              title="About"
+              links={[
+                ['/privacy', 'Privacy Policy'],
+                ['/terms', 'Terms of Service'],
+                ['https://github.com/cnickson/elec', 'Source code (MIT)'],
+              ]}
+            />
+            <div>
+              <h2 className="font-sans text-xs font-semibold uppercase tracking-[0.14em] text-neutral-300 mb-3">
+                Display
+              </h2>
+              <div className="flex flex-col items-start gap-2">
+                <button
+                  type="button"
+                  aria-pressed={lowData}
+                  onClick={() => setLowData(!lowData)}
+                  className="text-primary-300 hover:underline cursor-pointer min-h-[44px] md:min-h-0"
+                >
+                  Low-data mode: {lowData ? 'On' : 'Off'}
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={cbSafe}
+                  onClick={() => {
+                    setColourBlindSafe(!cbSafe);
+                    setCbSafe(!cbSafe);
+                  }}
+                  className="text-primary-300 hover:underline cursor-pointer min-h-[44px] md:min-h-0"
+                >
+                  Colour-blind-safe colours: {cbSafe ? 'On' : 'Off'}
+                </button>
+                <label className="flex items-center gap-2">
+                  Theme
+                  <select
+                    value={theme}
+                    onChange={(e) => setTheme(e.target.value as Theme)}
+                    className="bg-neutral-900 border border-neutral-800 text-neutral-200 rounded-full px-3 h-9 text-xs cursor-pointer"
+                  >
+                    {THEMES.map((t) => (
+                      <option key={t.value} value={t.value}>
+                        {t.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setImmersive(true)}
+                  className="text-primary-300 hover:underline cursor-pointer min-h-[44px] md:min-h-0"
+                >
+                  Full screen
+                </button>
+              </div>
+            </div>
           </div>
         </footer>
+
+        {immersive && (
+          <button
+            type="button"
+            onClick={() => setImmersive(false)}
+            aria-label="Exit full screen"
+            className="immersive-exit glass flex items-center justify-center gap-2 rounded-full border border-neutral-700 w-11 sm:w-auto sm:px-4 h-11 text-sm text-neutral-100 shadow-lg cursor-pointer"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" />
+            </svg>
+            <span className="hidden sm:inline">Exit full screen</span>
+          </button>
+        )}
 
         {/* Modals */}
         <Suspense fallback={null}>

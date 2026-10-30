@@ -7,15 +7,21 @@ export default function ElectionTypeToggle() {
   const hasGE = stateInfo && stateInfo.ge_constituencies > 0;
 
   return (
-    <div className="flex gap-1">
+    <div
+      className="inline-flex p-1 rounded-full bg-neutral-900/80 border border-neutral-800"
+      role="group"
+      aria-label="Election type"
+    >
       <button
-        className={`px-3 py-1.5 text-xs rounded-md border transition-colors cursor-pointer ${electionType === 'AE' ? 'bg-primary-400 text-black border-primary-400' : 'bg-neutral-900 text-neutral-300 border-neutral-700 hover:bg-neutral-800'}`}
+        aria-pressed={electionType === 'AE'}
+        className={`px-3.5 h-7 text-xs rounded-full transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${electionType === 'AE' ? 'bg-primary-400 text-black font-semibold' : 'text-neutral-300 hover:text-white'}`}
         onClick={() => setElectionType('AE')}
       >
         Assembly
       </button>
       <button
-        className={`px-3 py-1.5 text-xs rounded-md border transition-colors cursor-pointer ${electionType === 'GE' ? 'bg-primary-400 text-black border-primary-400' : 'bg-neutral-900 text-neutral-300 border-neutral-700 hover:bg-neutral-800'}`}
+        aria-pressed={electionType === 'GE'}
+        className={`px-3.5 h-7 text-xs rounded-full transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${electionType === 'GE' ? 'bg-primary-400 text-black font-semibold' : 'text-neutral-300 hover:text-white'}`}
         onClick={() => setElectionType('GE')}
         disabled={!hasGE}
         title={hasGE ? 'Lok Sabha Elections' : 'No Lok Sabha data for this state'}

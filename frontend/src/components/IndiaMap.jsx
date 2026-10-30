@@ -77,14 +77,18 @@ export default function IndiaMap({
   }
 
   return (
-    <div className="india-map-container">
+    <div className="india-map-container glass-card rounded-2xl p-2 md:p-4">
       <div className="map-wrapper" style={{ position: 'relative' }}>
         <ComposableMap
           projection="geoMercator"
           projectionConfig={{ center: [82, 22], scale: 1000 }}
           width={500}
           height={550}
-          style={{ width: '100%', height: 'auto', background: '#181824' }}
+          style={{
+            width: '100%',
+            height: 'auto',
+            maxHeight: 'max(18rem, calc(100vh / var(--ui-zoom) - 24rem))',
+          }}
         >
           <ZoomableGroup>
             <Geographies geography={indiaGeo}>
@@ -98,11 +102,15 @@ export default function IndiaMap({
                       key={geo.rsmKey}
                       geography={geo}
                       fill={getFill(geoName)}
-                      stroke="#fff"
-                      strokeWidth={0.5}
+                      strokeWidth={0.6}
                       style={{
-                        default: { outline: 'none' },
-                        hover: { outline: 'none', fill: '#fbbf24', cursor: 'pointer' },
+                        default: { outline: 'none', stroke: 'var(--color-neutral-950)' },
+                        hover: {
+                          outline: 'none',
+                          fill: '#fbbf24',
+                          stroke: 'var(--color-neutral-950)',
+                          cursor: 'pointer',
+                        },
                         pressed: { outline: 'none' },
                       }}
                       onMouseEnter={(e) => {

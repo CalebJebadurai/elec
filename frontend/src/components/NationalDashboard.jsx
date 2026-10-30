@@ -144,11 +144,11 @@ export default function NationalDashboard({ initialTab }) {
   return (
     <div className="mb-8">
       {/* Tab nav */}
-      <div className="flex gap-1 mb-6 border-b-2 border-neutral-800 overflow-x-auto">
+      <div className="scroll-x flex gap-1 mb-6 border-b border-neutral-800">
         {TABS.map((t) => (
           <button
             key={t.key}
-            className={`px-4 py-2 text-sm whitespace-nowrap border-b-2 -mb-[2px] transition-colors cursor-pointer min-h-[44px] md:min-h-0 ${tab === t.key ? 'border-saffron text-saffron font-semibold' : 'border-transparent text-neutral-400 hover:text-neutral-200'}`}
+            className={`shrink-0 px-3.5 h-11 text-sm whitespace-nowrap border-b-2 -mb-px transition-colors cursor-pointer ${tab === t.key ? 'border-saffron text-white font-semibold' : 'border-transparent text-neutral-400 hover:text-white'}`}
             onClick={() => {
               setTab(t.key);
               navigate(t.key === 'map' ? '/national' : `/national/${t.key}`);
@@ -169,7 +169,7 @@ export default function NationalDashboard({ initialTab }) {
                 value={et}
                 onChange={(e) => setEt(e.target.value)}
                 aria-label="Election type"
-                className="bg-neutral-900 border border-neutral-800 text-neutral-200 rounded-md px-3 py-2 text-sm cursor-pointer min-h-[44px] md:min-h-0"
+                className="bg-neutral-900 border border-neutral-800 text-neutral-200 rounded-full px-4 h-10 text-sm cursor-pointer hover:border-neutral-600"
               >
                 <option value="AE">Assembly (AE)</option>
                 <option value="GE">Lok Sabha (GE)</option>
@@ -181,7 +181,7 @@ export default function NationalDashboard({ initialTab }) {
                 value={colorMode}
                 onChange={(e) => setColorMode(e.target.value)}
                 aria-label="Map color mode"
-                className="bg-neutral-900 border border-neutral-800 text-neutral-200 rounded-md px-3 py-2 text-sm cursor-pointer min-h-[44px] md:min-h-0"
+                className="bg-neutral-900 border border-neutral-800 text-neutral-200 rounded-full px-4 h-10 text-sm cursor-pointer hover:border-neutral-600"
               >
                 {COLOR_MODES.map((m) => (
                   <option key={m.value} value={m.value}>
@@ -194,35 +194,43 @@ export default function NationalDashboard({ initialTab }) {
 
           {/* Summary cards + Map */}
           <div className="flex flex-col gap-4 mb-6 lg:flex-row">
-            <div className="grid grid-cols-2 gap-2 md:grid-cols-4 lg:grid-cols-2 lg:w-48">
-              <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-3 text-center">
-                <div className="text-xl font-bold text-primary-300">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-1 lg:w-60 lg:self-start">
+              <div className="glass-card rounded-2xl p-4">
+                <div className="font-display text-2xl font-semibold text-white tabular md:text-3xl">
                   {summary?.totalStates || 0}
                 </div>
-                <div className="text-xs text-neutral-400">States/UTs</div>
+                <div className="text-[0.68rem] uppercase tracking-[0.14em] text-neutral-400 mt-1">
+                  States/UTs
+                </div>
               </div>
-              <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-3 text-center">
-                <div className="text-xl font-bold text-primary-300">
+              <div className="glass-card rounded-2xl p-4">
+                <div className="font-display text-2xl font-semibold text-white tabular md:text-3xl">
                   {summary?.totalSeats?.toLocaleString() || 0}
                 </div>
-                <div className="text-xs text-neutral-400">Total Seats</div>
+                <div className="text-[0.68rem] uppercase tracking-[0.14em] text-neutral-400 mt-1">
+                  Total Seats
+                </div>
               </div>
-              <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-3 text-center">
+              <div className="glass-card rounded-2xl p-4">
                 <div
-                  className="text-xl font-bold"
+                  className="font-display text-2xl font-semibold md:text-3xl"
                   style={{
                     color: summary?.dominant ? partyColor(summary.dominant.party) : undefined,
                   }}
                 >
                   {summary?.dominant?.party || '—'}
                 </div>
-                <div className="text-xs text-neutral-400">Dominant Party</div>
+                <div className="text-[0.68rem] uppercase tracking-[0.14em] text-neutral-400 mt-1">
+                  Dominant Party
+                </div>
               </div>
-              <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-3 text-center">
-                <div className="text-xl font-bold text-primary-300">
+              <div className="glass-card rounded-2xl p-4">
+                <div className="font-display text-2xl font-semibold text-white tabular md:text-3xl">
                   {summary?.avgTurnout || '—'}%
                 </div>
-                <div className="text-xs text-neutral-400">Avg Turnout</div>
+                <div className="text-[0.68rem] uppercase tracking-[0.14em] text-neutral-400 mt-1">
+                  Avg Turnout
+                </div>
               </div>
             </div>
             <div className="flex-1 min-w-0">

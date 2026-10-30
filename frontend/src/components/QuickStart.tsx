@@ -9,7 +9,11 @@ import type { ConstituencySummary } from '../types';
  * Two-step onboarding: pick a state, pick an assembly seat, land on its page.
  * Works without signing in.
  */
-export default function QuickStart() {
+export default function QuickStart({
+  className = 'max-w-xl mx-auto mt-8',
+}: {
+  className?: string;
+}) {
   const { states, selectedState, selectState } = useStateSelection();
   const navigate = useNavigate();
   const [mine, setMine] = useMyConstituency();
@@ -56,7 +60,7 @@ export default function QuickStart() {
   return (
     <section
       aria-labelledby="quickstart-heading"
-      className="relative max-w-xl mx-auto mt-8 bg-neutral-900 border border-neutral-800 rounded-2xl p-5 text-left"
+      className={`relative bg-neutral-900 border border-neutral-800 rounded-2xl p-5 text-left ${className}`}
     >
       <h3 id="quickstart-heading" className="text-base font-semibold text-white mb-1">
         Find your seat
