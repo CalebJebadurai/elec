@@ -1,0 +1,74 @@
+[
+  {
+    "title": "Credibility before projections",
+    "motion": "This house believes that electionanalysis.in should stop showing seat projections to the public until its model is fitted to real data and back-tested against past elections.",
+    "background": "The simulator shows seat counts, vote shares and flipped seats with a ±3% band. Its factor coefficients are round numbers with no recorded estimation method, the API and browser copies differ, two factors ignore per-candidate data, and the claimed 65–75% accuracy can't be reproduced from the repository. Supporters say clear disclaimers and user-controlled sliders make it an honest what-if tool; critics say numbers that look like forecasts will be read as forecasts.",
+    "weight": 10,
+    "weight_reason": "The product's core output and every other stakeholder's trust depend on whether its numbers mean anything.",
+    "contention": 7,
+    "contention_reason": "Experts lean towards fixing the model first, but product and business voices can defend shipping an exploratory tool with disclaimers."
+  },
+  {
+    "title": "Community predictions during elections",
+    "motion": "This house believes that electionanalysis.in should switch off public community predictions, likes and sharing while the Model Code of Conduct is in force, and fully during the 48-hour silence before polling.",
+    "background": "Users can publish predictions and collect likes, with no moderation, reporting or date-based limits. Section 126 of the Representation of the People Act bars displaying election matter in the 48 hours before polling ends, and ECI rules restrict exit-poll publication. The platform's own disclaimers say outputs are simulations, not forecasts. A lockout would protect against propaganda and legal risk but would switch off engagement at the moment of peak public interest.",
+    "weight": 9,
+    "weight_reason": "Election law is a gatekeeper risk that could shut the platform down, and misinformation harms voters directly.",
+    "contention": 8,
+    "contention_reason": "It sets free expression and engagement against legal caution and election integrity, splitting legal, media and user voices."
+  },
+  {
+    "title": "Charging money on licensed data",
+    "motion": "This house believes that electionanalysis.in should not charge for any tier until it has written permission from TCPD for commercial use of its data.",
+    "background": "All election data comes from TCPD at Ashoka University. The platform already sells Pro (₹299 a month) and Business (₹4,999 a month) tiers, an API and data export. The repository records no licence agreement or permission for commercial use. Waiting protects the relationship with the only data source; charging now funds hosting, development and growth before competitors move.",
+    "weight": 8,
+    "weight_reason": "Without the data there is no product, so the licence question is existential for the business.",
+    "contention": 7,
+    "contention_reason": "Legal and data-custodian voices favour waiting, while business voices argue that asking forgiveness is normal for early-stage products."
+  },
+  {
+    "title": "Open source or proprietary",
+    "motion": "This house believes that electionanalysis.in should be open source rather than a closed, proprietary product.",
+    "background": "The code was published under the MIT licence with contributor guides, and the repository has since been made private. Open source invites scrutiny of a political tool's methods, academic reuse and outside contributors to a one-developer project. A closed product protects a business with no data or model moat and keeps campaign-relevant features out of rivals' hands. Code already published under MIT stays usable by anyone.",
+    "weight": 6,
+    "weight_reason": "It shapes trust, funding and the bus-factor risk, but doesn't decide whether the product survives on its own.",
+    "contention": 8,
+    "contention_reason": "Transparency and community arguments meet hard commercial ones, with credible cases on both sides."
+  },
+  {
+    "title": "Who the platform is for",
+    "motion": "This house believes that electionanalysis.in should focus on professional users (newsrooms, pollsters, researchers and analysts) rather than ordinary voters.",
+    "background": "The platform tries to serve everyone: a free tier and India map for citizens, sliders for enthusiasts, an API, embeds and Business pricing for media and analysts. Ordinary voters are the largest group but find terms like ENOP and twelve factor sliders hard to use and pay little. Professionals pay and need rigour, but are a small market already served by established names.",
+    "weight": 7,
+    "weight_reason": "The choice of core user decides the roadmap, the pricing and which risks matter most.",
+    "contention": 8,
+    "contention_reason": "Citizen and civil-society voices pull one way and business and media voices the other, with no obvious answer."
+  },
+  {
+    "title": "Languages and accessibility first",
+    "motion": "This house believes that electionanalysis.in should make Indian-language support and accessibility its top priority, ahead of any new prediction or paid features.",
+    "background": "The site is English only, constituency names appear only in English script, accessibility linting was deferred, and charts likely lack text alternatives. Most Indian voters read in other languages, and many use cheap phones on slow networks. Translation and accessibility are slow, unglamorous work that delays features paying customers ask for, such as a counting-day mode or better models.",
+    "weight": 7,
+    "weight_reason": "It decides whether most of India can use the platform at all.",
+    "contention": 6,
+    "contention_reason": "Few argue against inclusion, but there is real disagreement on whether it should come before revenue and credibility work."
+  },
+  {
+    "title": "Selling to political campaigns",
+    "motion": "This house believes that electionanalysis.in should refuse to sell paid plans, API access or custom work to political parties and campaigns.",
+    "background": "Parties and consultants are among the most willing payers for constituency-level swing analysis and simulations. They are also the users most likely to use a public platform to stage favourable 'predictions' or treat it as campaign infrastructure, raising questions about neutrality, election-spending rules and reputation. Refusing them gives up revenue and may push them to less careful tools; serving them may cost the trust of media, voters and regulators.",
+    "weight": 7,
+    "weight_reason": "It sets the platform's neutrality, its largest revenue source and its regulatory exposure together.",
+    "contention": 8,
+    "contention_reason": "Commercial and political voices clash directly with watchdog, media and regulator voices."
+  },
+  {
+    "title": "Phone login and anonymity",
+    "motion": "This house believes that electionanalysis.in should let people explore, simulate and publish predictions without giving a phone number.",
+    "background": "Saving, publishing and liking predictions requires sign-up with a mobile number by OTP. Phone numbers tied to political preferences are sensitive personal data under the DPDP Act and attractive to campaigns and attackers. Phone login also makes abuse traceable and limits bot-driven likes. Anonymous use would lower the barrier and the privacy risk, but make brigading and fake consensus easier.",
+    "weight": 6,
+    "weight_reason": "It affects privacy law exposure, user trust and abuse resistance, but is fixable without changing the product's purpose.",
+    "contention": 7,
+    "contention_reason": "Privacy and access arguments conflict directly with integrity and anti-abuse arguments."
+  }
+]

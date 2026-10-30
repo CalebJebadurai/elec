@@ -16,6 +16,7 @@ import {
 import { api } from '../api';
 import { partyColor, normalizeParty } from '../constants';
 import { useStateSelection } from '../contexts/StateContext';
+import ConstituencySummaryCard from './ConstituencySummaryCard';
 
 export default function ConstituencyDetail({ name, onBack }) {
   const { selectedState, electionType } = useStateSelection();
@@ -91,6 +92,12 @@ export default function ConstituencyDetail({ name, onBack }) {
           <span>{data.sub_region}</span>
         </div>
       </div>
+
+      <ConstituencySummaryCard
+        results={results}
+        constituencyType={data.constituency_type}
+        electionType={electionType}
+      />
 
       <h3 className="text-base font-semibold text-primary-400 mb-3">Winning Party Timeline</h3>
       <div className="space-y-1 mb-4">
