@@ -1,4 +1,10 @@
 import { useCallback, useState, lazy, Suspense } from 'react';
+import {
+  readSimulatorMode,
+  saveSimulatorMode,
+  countHiddenAdvancedSettings,
+  type SimulatorMode,
+} from '../lib/simulatorMode';
 import * as Collapsible from '@radix-ui/react-collapsible';
 import { AFFINITY_PRESETS, DEFAULT_PREDICTION_PARAMS } from '../constants';
 import { Slider } from './ui/slider';
@@ -148,6 +154,13 @@ export default function PredictionPanel({
 
   const alliancePresets = getAlliancePresets(stateName || null);
   const [surveyModalOpen, setSurveyModalOpen] = useState(false);
+  const [mode, setModeState] = useState<SimulatorMode>(readSimulatorMode);
+  const advanced = mode === 'advanced';
+  const hiddenCount = advanced ? 0 : countHiddenAdvancedSettings(params);
+  const setMode = (m: SimulatorMode) => {
+    setModeState(m);
+    saveSimulatorMode(m);
+  };
 
   const handleSurveyImport = useCallback(
     (imported: Partial<AppPredictionParams>) => {
@@ -168,26 +181,64 @@ export default function PredictionPanel({
 
   return (
     <div className="w-full lg:w-80 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto bg-neutral-900 border border-neutral-800 rounded-xl p-4 space-y-4">
-      {/* Prediction mode toggle */}
-      <div className="flex rounded-lg border border-neutral-800 overflow-hidden">
-        <button
-          className={`flex-1 px-3 py-2 text-sm font-medium transition-colors min-h-[44px] ${
-            params.predictionMode === 'formula'
-              ? 'bg-primary-600 text-white'
-              : 'bg-neutral-800 text-neutral-400 hover:text-neutral-200'
-          }`}
-          onClick={() => update('predictionMode', 'formula')}
-        >
-          Formula
-        </button>
-        <button
-          className="flex-1 px-3 py-2 text-sm font-medium bg-neutral-800 text-neutral-600 cursor-not-allowed min-h-[44px]"
-          disabled
-          title="ML prediction requires backend deployment (coming soon)"
-        >
-          ML (coming soon)
-        </button>
+      {/* Simple / advanced view */}
+      <div
+        className="flex rounded-lg border border-neutral-800 overflow-hidden"
+        role="group"
+        aria-label="Simulator view"
+      >
+        {(['simple', 'advanced'] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            aria-pressed={mode === m}
+            className={`flex-1 px-3 py-2 text-sm font-medium transition-colors min-h-[44px] cursor-pointer ${
+              mode === m
+                ? 'bg-primary-400 text-black'
+                : 'bg-neutral-800 text-neutral-400 hover:text-neutral-200'
+            }`}
+            onClick={() => setMode(m)}
+          >
+            {m === 'simple' ? 'Simple' : 'Advanced'}
+          </button>
+        ))}
       </div>
+      {hiddenCount > 0 && (
+        <p className="text-xs text-warning" role="status">
+          {hiddenCount} advanced setting{hiddenCount === 1 ? ' is' : 's are'} still changed and
+          affect the result.{' '}
+          <button
+            type="button"
+            className="underline cursor-pointer"
+            onClick={() => setMode('advanced')}
+          >
+            Show them
+          </button>
+        </p>
+      )}
+
+      {/* Prediction mode toggle */}
+      {advanced && (
+        <div className="flex rounded-lg border border-neutral-800 overflow-hidden">
+          <button
+            className={`flex-1 px-3 py-2 text-sm font-medium transition-colors min-h-[44px] ${
+              params.predictionMode === 'formula'
+                ? 'bg-primary-600 text-white'
+                : 'bg-neutral-800 text-neutral-400 hover:text-neutral-200'
+            }`}
+            onClick={() => update('predictionMode', 'formula')}
+          >
+            Formula
+          </button>
+          <button
+            className="flex-1 px-3 py-2 text-sm font-medium bg-neutral-800 text-neutral-600 cursor-not-allowed min-h-[44px]"
+            disabled
+            title="ML prediction requires backend deployment (coming soon)"
+          >
+            ML (coming soon)
+          </button>
+        </div>
+      )}
 
       {/* Primary controls — always visible */}
       <div>
@@ -211,15 +262,19 @@ export default function PredictionPanel({
           <span>100%</span>
         </div>
 
-        <label className="block text-sm text-neutral-300 mb-1">Total Voters (Electors)</label>
-        <input
-          type="number"
-          placeholder="Leave blank for default"
-          value={params.totalElectors || ''}
-          onChange={(e) => update('totalElectors', e.target.value ? +e.target.value : null)}
-          className="w-full rounded-md border border-neutral-800 bg-[#1e1e1e] px-3 py-2 text-sm text-neutral-200 placeholder:text-neutral-500 focus:outline-2 focus:outline-primary-400 mb-3"
-          min="0"
-        />
+        {advanced && (
+          <>
+            <label className="block text-sm text-neutral-300 mb-1">Total Voters (Electors)</label>
+            <input
+              type="number"
+              placeholder="Leave blank for default"
+              value={params.totalElectors || ''}
+              onChange={(e) => update('totalElectors', e.target.value ? +e.target.value : null)}
+              className="w-full rounded-md border border-neutral-800 bg-[#1e1e1e] px-3 py-2 text-sm text-neutral-200 placeholder:text-neutral-500 focus:outline-2 focus:outline-primary-400 mb-3"
+              min="0"
+            />
+          </>
+        )}
 
         <label className="flex items-center justify-between text-sm text-neutral-300 mb-1">
           Expected Turnout
@@ -241,146 +296,155 @@ export default function PredictionPanel({
       </div>
 
       {/* Multi-factor adjustment sections */}
-      {factorCategories.map((category) => {
-        const factors = getFactorsByCategory(category);
-        const catInfo = FACTOR_CATEGORIES[category];
-        if (factors.length === 0) return null;
-        return (
-          <Collapsible.Root key={category} className="border-t border-neutral-800 pt-3">
-            <Collapsible.Trigger className="flex w-full items-center justify-between py-2 text-left">
-              <h2 className="text-base font-semibold text-primary-300">{catInfo.label}</h2>
-              <span className="text-neutral-500 text-sm">▾</span>
-            </Collapsible.Trigger>
-            <Collapsible.Content>
-              <p className="text-xs text-neutral-500 mb-2 mt-1">{catInfo.description}</p>
-              {factors.map((f) => (
-                <FactorSlider
-                  key={f.name}
-                  factorName={f.name}
-                  value={(params[f.name as keyof AppPredictionParams] as number) ?? f.defaultValue}
-                  defaultValue={f.defaultValue}
-                  min={f.range.min}
-                  max={f.range.max}
-                  step={f.step}
-                  label={f.displayName}
-                  tooltip={f.tooltip}
-                  onValueChange={(v) => update(f.name, v)}
-                  onReset={() => resetFactor(f.name)}
-                />
-              ))}
-            </Collapsible.Content>
-          </Collapsible.Root>
-        );
-      })}
+      {advanced &&
+        factorCategories.map((category) => {
+          const factors = getFactorsByCategory(category);
+          const catInfo = FACTOR_CATEGORIES[category];
+          if (factors.length === 0) return null;
+          return (
+            <Collapsible.Root key={category} className="border-t border-neutral-800 pt-3">
+              <Collapsible.Trigger className="flex w-full items-center justify-between py-2 text-left">
+                <h2 className="text-base font-semibold text-primary-300">{catInfo.label}</h2>
+                <span className="text-neutral-500 text-sm">▾</span>
+              </Collapsible.Trigger>
+              <Collapsible.Content>
+                <p className="text-xs text-neutral-500 mb-2 mt-1">{catInfo.description}</p>
+                {factors.map((f) => (
+                  <FactorSlider
+                    key={f.name}
+                    factorName={f.name}
+                    value={
+                      (params[f.name as keyof AppPredictionParams] as number) ?? f.defaultValue
+                    }
+                    defaultValue={f.defaultValue}
+                    min={f.range.min}
+                    max={f.range.max}
+                    step={f.step}
+                    label={f.displayName}
+                    tooltip={f.tooltip}
+                    onValueChange={(v) => update(f.name, v)}
+                    onReset={() => resetFactor(f.name)}
+                  />
+                ))}
+              </Collapsible.Content>
+            </Collapsible.Root>
+          );
+        })}
 
       {/* Alliance Configuration */}
-      <Collapsible.Root className="border-t border-neutral-800 pt-3">
-        <Collapsible.Trigger className="flex w-full items-center justify-between py-2 text-left">
-          <h2 className="text-base font-semibold text-primary-300">Alliance Configuration</h2>
-          <span className="text-neutral-500 text-sm">▾</span>
-        </Collapsible.Trigger>
-        <Collapsible.Content>
-          <div className="mt-2 space-y-3">
-            {/* Alliance presets */}
-            {alliancePresets && (
-              <div>
-                <label className="block text-sm text-neutral-300 mb-1">
-                  Load Historical Alliance
-                </label>
-                <select
-                  onChange={(e) => e.target.value && loadAlliancePreset(e.target.value)}
-                  className="w-full rounded-md border border-neutral-800 bg-[#1e1e1e] px-3 py-2 text-sm text-neutral-200 focus:outline-2 focus:outline-primary-400 min-h-[44px]"
-                  aria-label="Historical alliance preset"
-                  defaultValue=""
-                >
-                  <option value="">Select year...</option>
-                  {Object.keys(alliancePresets).map((year) => (
-                    <option key={year} value={year}>
-                      {year}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {/* Current alliances */}
-            {params.allianceConfig.map((bloc, idx) => (
-              <fieldset key={idx} role="group" className="border border-neutral-800 rounded-lg p-3">
-                <legend className="text-sm font-medium text-primary-300 px-1">{bloc.name}</legend>
-                <div className="flex flex-wrap gap-1 mb-2">
-                  {bloc.parties.map((p) => (
-                    <span
-                      key={p}
-                      className="text-xs bg-neutral-800 text-neutral-300 rounded px-2 py-1"
-                    >
-                      {p}
-                    </span>
-                  ))}
-                </div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs text-neutral-400">Transfer Efficiency</span>
-                  <span className="text-xs font-mono text-primary-400">
-                    {Math.round(bloc.transferEfficiency * 100)}%
-                  </span>
-                </div>
-                <Slider
-                  value={bloc.transferEfficiency}
-                  onValueChange={(v) => updateAllianceEfficiency(idx, v)}
-                  min={0.5}
-                  max={1}
-                  step={0.05}
-                  aria-label={`${bloc.name} transfer efficiency`}
-                  className="mb-2"
-                />
-                <button
-                  onClick={() => removeAlliance(idx)}
-                  className="text-xs text-neutral-500 hover:text-error transition-colors min-h-[44px] min-w-[44px]"
-                >
-                  Remove Alliance
-                </button>
-              </fieldset>
-            ))}
-
-            {/* Create new alliance */}
-            <div className="space-y-2">
-              <label className="block text-sm text-neutral-300">New Alliance Name</label>
-              <input
-                type="text"
-                placeholder="e.g. NDA, UPA..."
-                value={allianceName}
-                onChange={(e) => setAllianceName(e.target.value)}
-                className="w-full rounded-md border border-neutral-800 bg-[#1e1e1e] px-3 py-2 text-sm text-neutral-200 placeholder:text-neutral-500 focus:outline-2 focus:outline-primary-400"
-                maxLength={30}
-              />
-              <p className="text-xs text-neutral-500">Select parties for this alliance:</p>
-              <div className="flex flex-wrap gap-2">
-                {majorParties.map((party) => (
-                  <label
-                    key={party}
-                    className="flex items-center gap-1.5 text-sm text-neutral-300 cursor-pointer min-h-[44px]"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={allianceParties.has(party)}
-                      onChange={() => toggleAllianceParty(party)}
-                      className="rounded border-neutral-700 bg-neutral-800 text-primary-400 w-5 h-5"
-                      aria-label={`Add ${party} to alliance`}
-                    />
-                    {party}
+      {advanced && (
+        <Collapsible.Root className="border-t border-neutral-800 pt-3">
+          <Collapsible.Trigger className="flex w-full items-center justify-between py-2 text-left">
+            <h2 className="text-base font-semibold text-primary-300">Alliance Configuration</h2>
+            <span className="text-neutral-500 text-sm">▾</span>
+          </Collapsible.Trigger>
+          <Collapsible.Content>
+            <div className="mt-2 space-y-3">
+              {/* Alliance presets */}
+              {alliancePresets && (
+                <div>
+                  <label className="block text-sm text-neutral-300 mb-1">
+                    Load Historical Alliance
                   </label>
-                ))}
+                  <select
+                    onChange={(e) => e.target.value && loadAlliancePreset(e.target.value)}
+                    className="w-full rounded-md border border-neutral-800 bg-[#1e1e1e] px-3 py-2 text-sm text-neutral-200 focus:outline-2 focus:outline-primary-400 min-h-[44px]"
+                    aria-label="Historical alliance preset"
+                    defaultValue=""
+                  >
+                    <option value="">Select year...</option>
+                    {Object.keys(alliancePresets).map((year) => (
+                      <option key={year} value={year}>
+                        {year}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Current alliances */}
+              {params.allianceConfig.map((bloc, idx) => (
+                <fieldset
+                  key={idx}
+                  role="group"
+                  className="border border-neutral-800 rounded-lg p-3"
+                >
+                  <legend className="text-sm font-medium text-primary-300 px-1">{bloc.name}</legend>
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {bloc.parties.map((p) => (
+                      <span
+                        key={p}
+                        className="text-xs bg-neutral-800 text-neutral-300 rounded px-2 py-1"
+                      >
+                        {p}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs text-neutral-400">Transfer Efficiency</span>
+                    <span className="text-xs font-mono text-primary-400">
+                      {Math.round(bloc.transferEfficiency * 100)}%
+                    </span>
+                  </div>
+                  <Slider
+                    value={bloc.transferEfficiency}
+                    onValueChange={(v) => updateAllianceEfficiency(idx, v)}
+                    min={0.5}
+                    max={1}
+                    step={0.05}
+                    aria-label={`${bloc.name} transfer efficiency`}
+                    className="mb-2"
+                  />
+                  <button
+                    onClick={() => removeAlliance(idx)}
+                    className="text-xs text-neutral-500 hover:text-error transition-colors min-h-[44px] min-w-[44px]"
+                  >
+                    Remove Alliance
+                  </button>
+                </fieldset>
+              ))}
+
+              {/* Create new alliance */}
+              <div className="space-y-2">
+                <label className="block text-sm text-neutral-300">New Alliance Name</label>
+                <input
+                  type="text"
+                  placeholder="e.g. NDA, UPA..."
+                  value={allianceName}
+                  onChange={(e) => setAllianceName(e.target.value)}
+                  className="w-full rounded-md border border-neutral-800 bg-[#1e1e1e] px-3 py-2 text-sm text-neutral-200 placeholder:text-neutral-500 focus:outline-2 focus:outline-primary-400"
+                  maxLength={30}
+                />
+                <p className="text-xs text-neutral-500">Select parties for this alliance:</p>
+                <div className="flex flex-wrap gap-2">
+                  {majorParties.map((party) => (
+                    <label
+                      key={party}
+                      className="flex items-center gap-1.5 text-sm text-neutral-300 cursor-pointer min-h-[44px]"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={allianceParties.has(party)}
+                        onChange={() => toggleAllianceParty(party)}
+                        className="rounded border-neutral-700 bg-neutral-800 text-primary-400 w-5 h-5"
+                        aria-label={`Add ${party} to alliance`}
+                      />
+                      {party}
+                    </label>
+                  ))}
+                </div>
+                <button
+                  onClick={addAlliance}
+                  disabled={!allianceName || allianceParties.size < 2}
+                  className="w-full rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm text-neutral-300 transition-colors hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]"
+                >
+                  Create Alliance
+                </button>
               </div>
-              <button
-                onClick={addAlliance}
-                disabled={!allianceName || allianceParties.size < 2}
-                className="w-full rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm text-neutral-300 transition-colors hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]"
-              >
-                Create Alliance
-              </button>
             </div>
-          </div>
-        </Collapsible.Content>
-      </Collapsible.Root>
+          </Collapsible.Content>
+        </Collapsible.Root>
+      )}
 
       {/* New party configuration — collapsible on mobile */}
       <Collapsible.Root defaultOpen className="border-t border-neutral-800 pt-3">
@@ -453,110 +517,116 @@ export default function PredictionPanel({
         </Collapsible.Content>
       </Collapsible.Root>
 
-      {/* Affinity weights — collapsed by default */}
-      <Collapsible.Root className="border-t border-neutral-800 pt-3">
-        <Collapsible.Trigger className="flex w-full items-center gap-2 py-2 text-left text-sm text-neutral-300 hover:text-white transition-colors">
-          <span>Affinity Weights</span>
-          <span className="text-xs text-neutral-500">Who loses votes to the new party?</span>
-        </Collapsible.Trigger>
-        <Collapsible.Content>
-          <div className="mt-2 space-y-2">
-            {affinityKeys.map((party) => (
-              <div key={party} className="flex items-center gap-2">
-                <span className="text-sm text-neutral-300 w-20 shrink-0 truncate">{party}</span>
-                <Slider
-                  value={params.affinityWeights[party] || 0}
-                  onValueChange={(v) => updateAffinity(party, v)}
-                  min={0}
-                  max={1}
-                  step={0.05}
-                  disabled={params.newPartyPreset !== 'custom'}
-                  aria-label={`${party} affinity weight`}
-                  className="flex-1"
-                />
-                <span className="text-xs font-mono text-neutral-400 w-10 text-right">
-                  {((params.affinityWeights[party] || 0) * 100).toFixed(0)}%
-                </span>
+      {advanced && (
+        <>
+          {/* Affinity weights — collapsed by default */}
+          <Collapsible.Root className="border-t border-neutral-800 pt-3">
+            <Collapsible.Trigger className="flex w-full items-center gap-2 py-2 text-left text-sm text-neutral-300 hover:text-white transition-colors">
+              <span>Affinity Weights</span>
+              <span className="text-xs text-neutral-500">Who loses votes to the new party?</span>
+            </Collapsible.Trigger>
+            <Collapsible.Content>
+              <div className="mt-2 space-y-2">
+                {affinityKeys.map((party) => (
+                  <div key={party} className="flex items-center gap-2">
+                    <span className="text-sm text-neutral-300 w-20 shrink-0 truncate">{party}</span>
+                    <Slider
+                      value={params.affinityWeights[party] || 0}
+                      onValueChange={(v) => updateAffinity(party, v)}
+                      min={0}
+                      max={1}
+                      step={0.05}
+                      disabled={params.newPartyPreset !== 'custom'}
+                      aria-label={`${party} affinity weight`}
+                      className="flex-1"
+                    />
+                    <span className="text-xs font-mono text-neutral-400 w-10 text-right">
+                      {((params.affinityWeights[party] || 0) * 100).toFixed(0)}%
+                    </span>
+                  </div>
+                ))}
+                {params.newPartyPreset !== 'custom' && (
+                  <p className="text-xs text-neutral-500 mt-1">
+                    Switch to &ldquo;Custom&rdquo; preset to edit weights
+                  </p>
+                )}
               </div>
-            ))}
-            {params.newPartyPreset !== 'custom' && (
-              <p className="text-xs text-neutral-500 mt-1">
-                Switch to &ldquo;Custom&rdquo; preset to edit weights
-              </p>
-            )}
-          </div>
-        </Collapsible.Content>
-      </Collapsible.Root>
+            </Collapsible.Content>
+          </Collapsible.Root>
 
-      {/* Per-constituency overrides — collapsed by default */}
-      <Collapsible.Root className="border-t border-neutral-800 pt-3">
-        <Collapsible.Trigger className="flex w-full items-center gap-2 py-2 text-left text-sm text-neutral-300 hover:text-white transition-colors">
-          <span>Per-Constituency Overrides</span>
-          <span className="text-xs text-neutral-500">Set custom vote share for specific seats</span>
-        </Collapsible.Trigger>
-        <Collapsible.Content>
-          <div className="mt-2">
-            <input
-              type="text"
-              placeholder="Search constituency..."
-              value={''}
-              onChange={() => {}}
-              className="w-full rounded-md border border-neutral-800 bg-[#1e1e1e] px-3 py-2 text-sm text-neutral-200 placeholder:text-neutral-500 focus:outline-2 focus:outline-primary-400 mb-2"
-            />
-            <div className="space-y-1">
-              {Object.entries(params.constituencyOverrides).map(([name, pct]) => (
-                <div key={name} className="flex items-center gap-2">
-                  <span className="text-sm text-neutral-300 flex-1 truncate">{name}</span>
-                  <input
-                    type="number"
-                    min="0"
-                    max="60"
-                    step="0.5"
-                    value={pct}
-                    onChange={(e) => {
-                      const val = +e.target.value;
-                      const next = { ...params.constituencyOverrides };
-                      if (val <= 0) delete next[name];
-                      else next[name] = val;
-                      update('constituencyOverrides', next);
-                    }}
-                    className="w-16 rounded-md border border-neutral-800 bg-[#1e1e1e] px-2 py-1 text-sm text-neutral-200 text-right focus:outline-2 focus:outline-primary-400"
-                  />
-                  <span className="text-xs text-neutral-500">%</span>
-                  <button
-                    className="text-neutral-500 hover:text-error transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
-                    onClick={() => {
-                      const next = { ...params.constituencyOverrides };
-                      delete next[name];
-                      update('constituencyOverrides', next);
-                    }}
-                  >
-                    ×
-                  </button>
+          {/* Per-constituency overrides — collapsed by default */}
+          <Collapsible.Root className="border-t border-neutral-800 pt-3">
+            <Collapsible.Trigger className="flex w-full items-center gap-2 py-2 text-left text-sm text-neutral-300 hover:text-white transition-colors">
+              <span>Per-Constituency Overrides</span>
+              <span className="text-xs text-neutral-500">
+                Set custom vote share for specific seats
+              </span>
+            </Collapsible.Trigger>
+            <Collapsible.Content>
+              <div className="mt-2">
+                <input
+                  type="text"
+                  placeholder="Search constituency..."
+                  value={''}
+                  onChange={() => {}}
+                  className="w-full rounded-md border border-neutral-800 bg-[#1e1e1e] px-3 py-2 text-sm text-neutral-200 placeholder:text-neutral-500 focus:outline-2 focus:outline-primary-400 mb-2"
+                />
+                <div className="space-y-1">
+                  {Object.entries(params.constituencyOverrides).map(([name, pct]) => (
+                    <div key={name} className="flex items-center gap-2">
+                      <span className="text-sm text-neutral-300 flex-1 truncate">{name}</span>
+                      <input
+                        type="number"
+                        min="0"
+                        max="60"
+                        step="0.5"
+                        value={pct}
+                        onChange={(e) => {
+                          const val = +e.target.value;
+                          const next = { ...params.constituencyOverrides };
+                          if (val <= 0) delete next[name];
+                          else next[name] = val;
+                          update('constituencyOverrides', next);
+                        }}
+                        className="w-16 rounded-md border border-neutral-800 bg-[#1e1e1e] px-2 py-1 text-sm text-neutral-200 text-right focus:outline-2 focus:outline-primary-400"
+                      />
+                      <span className="text-xs text-neutral-500">%</span>
+                      <button
+                        className="text-neutral-500 hover:text-error transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+                        onClick={() => {
+                          const next = { ...params.constituencyOverrides };
+                          delete next[name];
+                          update('constituencyOverrides', next);
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                  <p className="text-xs text-neutral-500 mt-1">
+                    Click any constituency in the results table to add an override
+                  </p>
                 </div>
-              ))}
-              <p className="text-xs text-neutral-500 mt-1">
-                Click any constituency in the results table to add an override
-              </p>
-            </div>
-          </div>
-        </Collapsible.Content>
-      </Collapsible.Root>
+              </div>
+            </Collapsible.Content>
+          </Collapsible.Root>
 
-      <button
-        className="w-full mt-4 rounded-lg border border-neutral-700 bg-neutral-800 px-4 py-2.5 text-sm text-neutral-300 transition-colors hover:bg-neutral-700 min-h-[44px]"
-        onClick={() => setSurveyModalOpen(true)}
-      >
-        Load Survey Data
-      </button>
+          <button
+            className="w-full mt-4 rounded-lg border border-neutral-700 bg-neutral-800 px-4 py-2.5 text-sm text-neutral-300 transition-colors hover:bg-neutral-700 min-h-[44px]"
+            onClick={() => setSurveyModalOpen(true)}
+          >
+            Load Survey Data
+          </button>
 
-      <Suspense fallback={null}>
-        <SurveyImportModal
-          open={surveyModalOpen}
-          onOpenChange={setSurveyModalOpen}
-          onImport={handleSurveyImport}
-        />
-      </Suspense>
+          <Suspense fallback={null}>
+            <SurveyImportModal
+              open={surveyModalOpen}
+              onOpenChange={setSurveyModalOpen}
+              onImport={handleSurveyImport}
+            />
+          </Suspense>
+        </>
+      )}
 
       <button
         className="w-full mt-4 rounded-lg border border-neutral-800 bg-transparent px-4 py-2.5 text-sm text-neutral-400 transition-colors hover:bg-neutral-800 hover:text-white min-h-[44px]"
