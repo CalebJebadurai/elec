@@ -1,0 +1,12 @@
+{
+  "name": "Election Swings & Trends",
+  "short_name": "Swings",
+  "description": "Indian election results, swings and trends from TCPD data.",
+  "start_url": "/",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "any",
+  "background_color": "#070910",
+  "theme_color": "#070910",
+  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

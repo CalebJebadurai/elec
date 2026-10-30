@@ -9,12 +9,12 @@
 .const-grid th,
 .const-grid td {
   padding: 6px 10px;
-  border-bottom: 1px solid #2a2a40;
+  border-bottom: 1px solid var(--color-neutral-800);
   text-align: left;
 }
 .const-grid th {
-  background: #1a1a2e;
-  color: #a0a0a0;
+  background: var(--color-neutral-900);
+  color: var(--color-neutral-400);
   font-weight: 600;
   position: sticky;
   top: 0;
@@ -24,16 +24,16 @@
 .sticky-col {
   position: sticky;
   left: 0;
-  background: #0f0f1a;
+  background: var(--color-neutral-950);
   z-index: 1;
 }
 th.sticky-col {
   z-index: 3;
-  background: #1a1a2e;
+  background: var(--color-neutral-900);
 }
 
 .const-name {
-  color: #7ae0ff;
+  color: var(--color-primary-300);
   font-weight: 500;
   text-decoration: underline;
   text-decoration-color: rgba(122, 224, 255, 0.3);
@@ -50,7 +50,7 @@ th.sticky-col {
 
 .small-text {
   font-size: 11px;
-  color: #a0a0a0;
+  color: var(--color-neutral-400);
 }
 
 .party-cell {
@@ -62,7 +62,7 @@ th.sticky-col {
   display: block;
 }
 .pc-margin {
-  color: #a0a0a0;
+  color: var(--color-neutral-400);
   font-size: 11px;
 }
 
@@ -99,12 +99,13 @@ th.sticky-col {
 
 /* Map tooltip */
 .map-tooltip {
-  background: rgba(20, 20, 30, 0.95);
-  color: #eee;
+  background: color-mix(in srgb, var(--color-neutral-900) 90%, transparent);
+  backdrop-filter: blur(12px);
+  color: var(--color-neutral-200);
   padding: 10px 14px;
-  border-radius: 8px;
+  border-radius: 12px;
   font-size: 13px;
-  border: 1px solid #555;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   z-index: 1000;
   max-width: 220px;
   line-height: 1.5;
@@ -113,13 +114,13 @@ th.sticky-col {
 .map-tooltip strong {
   display: block;
   margin-bottom: 4px;
-  color: #fff;
+  color: var(--color-neutral-50);
 }
 
 /* IndiaMap container */
 .india-map-container {
   width: 100%;
-  max-width: 600px;
+  max-width: 46rem;
   margin: 0 auto;
 }
 .map-wrapper {
@@ -128,14 +129,8 @@ th.sticky-col {
 
 /* Recharts overrides */
 .recharts-text {
-  fill: #a0a0a0 !important;
+  fill: var(--color-neutral-400) !important;
   font-size: 12px;
-}
-.recharts-tooltip-cursor {
-  fill: rgba(255, 255, 255, 0.05);
-}
-.recharts-cartesian-grid line {
-  stroke: #2a2a40;
 }
 
 /* Responsive table sizing */
@@ -147,4 +142,18 @@ th.sticky-col {
   .const-grid td {
     padding: 5px 6px;
   }
+}
+
+/* Header row reads as a label, not data */
+.const-grid th {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding-block: 10px;
+}
+.const-grid td {
+  padding-block: 9px;
+}
+.const-grid tbody tr:hover {
+  background: rgba(56, 189, 248, 0.05);
 }

@@ -16,6 +16,7 @@ import { api } from '../api';
 import { partyColor, normalizeParty } from '../constants';
 import { useStateSelection } from '../contexts/StateContext';
 import DataSourceStamp from './DataSourceStamp';
+import ChartCard from './ChartCard';
 import WomenRepresentation from './WomenRepresentation';
 
 export default function StateOverview() {
@@ -99,67 +100,70 @@ export default function StateOverview() {
   });
 
   return (
-    <div className="mb-8">
-      <h2 className="text-lg font-semibold text-white mt-6 mb-3 border-b border-neutral-800 pb-2">
-        Seats Won by Party (General Elections)
-      </h2>
-      <div className="min-h-[200px] h-[40vh] max-h-[400px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={seatData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-            <XAxis dataKey="year" stroke="#ccc" tick={{ fontSize: 12 }} />
-            <YAxis stroke="#ccc" tick={{ fontSize: 12 }} />
-            <Tooltip contentStyle={{ background: '#1e1e2e', border: '1px solid #444' }} />
-            <Legend verticalAlign="bottom" />
-            {topParties.map((p) => (
-              <Bar key={p} dataKey={p} stackId="seats" fill={partyColor(p)} />
-            ))}
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
+    <div className="mb-8 space-y-4 md:space-y-6">
+      <ChartCard title="Seats won by party" note="General elections, stacked by party">
+        <div className="min-h-[220px] h-[42vh] max-h-[440px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={seatData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+              <XAxis dataKey="year" stroke="#ccc" tick={{ fontSize: 12 }} />
+              <YAxis stroke="#ccc" tick={{ fontSize: 12 }} />
+              <Tooltip contentStyle={{ background: '#1e1e2e', border: '1px solid #444' }} />
+              <Legend verticalAlign="bottom" />
+              {topParties.map((p) => (
+                <Bar key={p} dataKey={p} stackId="seats" fill={partyColor(p)} />
+              ))}
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </ChartCard>
 
-      <h2 className="text-lg font-semibold text-white mt-6 mb-3 border-b border-neutral-800 pb-2">
-        {top2.join(' vs ')} — Average Vote Share Trend
-      </h2>
-      <div className="min-h-[200px] h-[40vh] max-h-[350px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={voteShareData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-            <XAxis dataKey="year" stroke="#ccc" tick={{ fontSize: 12 }} />
-            <YAxis domain={[0, 'auto']} stroke="#ccc" unit="%" tick={{ fontSize: 12 }} />
-            <Tooltip contentStyle={{ background: '#1e1e2e', border: '1px solid #444' }} />
-            <Legend verticalAlign="bottom" />
-            {top2.map((p) => (
-              <Line
-                key={p}
-                type="monotone"
-                dataKey={p}
-                stroke={partyColor(p)}
-                strokeWidth={3}
-                dot={{ r: 5 }}
-                connectNulls
-              />
-            ))}
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
+      <div className="grid gap-4 md:gap-6 xl:grid-cols-2">
+        <ChartCard
+          title={`${top2.join(' vs ')}: average vote share`}
+          note="Average share per contested seat"
+        >
+          <div className="min-h-[220px] h-[38vh] max-h-[360px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={voteShareData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                <XAxis dataKey="year" stroke="#ccc" tick={{ fontSize: 12 }} />
+                <YAxis domain={[0, 'auto']} stroke="#ccc" unit="%" tick={{ fontSize: 12 }} />
+                <Tooltip contentStyle={{ background: '#1e1e2e', border: '1px solid #444' }} />
+                <Legend verticalAlign="bottom" />
+                {top2.map((p) => (
+                  <Line
+                    key={p}
+                    type="monotone"
+                    dataKey={p}
+                    stroke={partyColor(p)}
+                    strokeWidth={2.5}
+                    dot={{ r: 3.5, strokeWidth: 0 }}
+                    activeDot={{ r: 6 }}
+                    connectNulls
+                  />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </ChartCard>
 
-      <h2 className="text-lg font-semibold text-white mt-6 mb-3 border-b border-neutral-800 pb-2">
-        Vote Share Swing from Previous Election
-      </h2>
-      <div className="min-h-[200px] h-[40vh] max-h-[350px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={swingByYear}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-            <XAxis dataKey="year" stroke="#ccc" tick={{ fontSize: 12 }} />
-            <YAxis stroke="#ccc" unit="%" tick={{ fontSize: 12 }} />
-            <Tooltip contentStyle={{ background: '#1e1e2e', border: '1px solid #444' }} />
-            <Legend verticalAlign="bottom" />
-            {swingParties.map((p) => (
-              <Bar key={p} dataKey={p} fill={partyColor(p)} />
-            ))}
-          </BarChart>
-        </ResponsiveContainer>
+        <ChartCard title="Vote share swing" note="Change from the previous election, in points">
+          <div className="min-h-[220px] h-[38vh] max-h-[360px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={swingByYear}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                <XAxis dataKey="year" stroke="#ccc" tick={{ fontSize: 12 }} />
+                <YAxis stroke="#ccc" unit="%" tick={{ fontSize: 12 }} />
+                <Tooltip contentStyle={{ background: '#1e1e2e', border: '1px solid #444' }} />
+                <Legend verticalAlign="bottom" />
+                {swingParties.map((p) => (
+                  <Bar key={p} dataKey={p} fill={partyColor(p)} />
+                ))}
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </ChartCard>
       </div>
       <WomenRepresentation state={selectedState} electionType={electionType} />
       <DataSourceStamp

@@ -111,7 +111,7 @@ export default function BottomNav({ selectedState }: BottomNavProps) {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-40 flex h-14 items-center justify-around border-t border-neutral-800 bg-neutral-950 shadow-lg md:hidden"
+      className="bottom-nav glass safe-bottom fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around border-t border-neutral-800 md:hidden"
       aria-label="Mobile navigation"
     >
       {NAV_ITEMS.map((item) => {
@@ -121,12 +121,18 @@ export default function BottomNav({ selectedState }: BottomNavProps) {
           <button
             key={item.key}
             onClick={() => navigate(dest)}
-            className={`flex min-w-[44px] min-h-[44px] flex-col items-center justify-center gap-0.5 text-[10px] transition-colors ${
-              active ? 'text-primary-400' : 'text-neutral-400'
+            className={`group flex min-w-[56px] min-h-[56px] flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors cursor-pointer ${
+              active ? 'text-white' : 'text-neutral-400'
             }`}
             aria-current={active ? 'page' : undefined}
           >
-            {item.icon}
+            <span
+              className={`grid place-items-center h-7 w-12 rounded-full transition-colors ${
+                active ? 'bg-primary-400/20 text-primary-300' : ''
+              }`}
+            >
+              {item.icon}
+            </span>
             <span>{item.label}</span>
           </button>
         );
