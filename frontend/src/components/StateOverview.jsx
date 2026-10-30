@@ -15,6 +15,7 @@ import {
 import { api } from '../api';
 import { partyColor, normalizeParty } from '../constants';
 import { useStateSelection } from '../contexts/StateContext';
+import DataSourceStamp from './DataSourceStamp';
 
 export default function StateOverview() {
   const { selectedState, electionType } = useStateSelection();
@@ -159,6 +160,10 @@ export default function StateOverview() {
           </BarChart>
         </ResponsiveContainer>
       </div>
+      <DataSourceStamp
+        viewTitle={`${selectedState.replace(/_/g, ' ')} ${electionType === 'GE' ? 'Lok Sabha' : 'Assembly'} election overview`}
+        latestYear={years[years.length - 1]}
+      />
     </div>
   );
 }
