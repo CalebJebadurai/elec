@@ -17,6 +17,7 @@ import { api } from '../api';
 import { partyColor, normalizeParty } from '../constants';
 import { useStateSelection } from '../contexts/StateContext';
 import ConstituencySummaryCard from './ConstituencySummaryCard';
+import Term from './Term';
 
 export default function ConstituencyDetail({ name, onBack }) {
   const { selectedState, electionType } = useStateSelection();
@@ -118,7 +119,9 @@ export default function ConstituencyDetail({ name, onBack }) {
         ))}
       </div>
 
-      <h3 className="text-base font-semibold text-primary-400 mt-6 mb-3">Victory Margin Trend</h3>
+      <h3 className="text-base font-semibold text-primary-400 mt-6 mb-3">
+        Victory <Term id="margin">Margin</Term> Trend
+      </h3>
       <div className="min-h-[200px] h-[40vh] max-h-[300px]">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={marginData}>
@@ -141,7 +144,9 @@ export default function ConstituencyDetail({ name, onBack }) {
         </ResponsiveContainer>
       </div>
 
-      <h3 className="text-base font-semibold text-primary-400 mt-6 mb-3">Turnout & Competition</h3>
+      <h3 className="text-base font-semibold text-primary-400 mt-6 mb-3">
+        <Term id="turnout">Turnout</Term> & Competition (<Term id="enop">ENOP</Term>)
+      </h3>
       <div className="min-h-[200px] h-[40vh] max-h-[300px]">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={turnoutData}>
