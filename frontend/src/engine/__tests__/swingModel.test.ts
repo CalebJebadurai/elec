@@ -7,7 +7,13 @@ import {
   NEUTRAL_SLIDERS,
   type SwingInput,
 } from '../swingModel';
-import { SWING_COEFFICIENTS, buildSwingInput, runSwingModel } from '../swingAdapter';
+import {
+  SWING_COEFFICIENTS,
+  STATE_GENDER,
+  buildSwingInput,
+  groupShare,
+  runSwingModel,
+} from '../swingAdapter';
 import { DEFAULT_PREDICTION_PARAMS, normalizeParty } from '../../constants';
 import type { PredictionDataResponse } from '../../types';
 
@@ -120,6 +126,19 @@ describe('party labels', () => {
     expect(normalizeParty('CPIM')).toBe('CPM');
     expect(normalizeParty('Communist Party of India(Marxist)')).toBe('CPM');
     expect(normalizeParty('None of the Above')).toBe('NOTA');
+  });
+});
+
+describe('voter group shares', () => {
+  const women = { id: 'women', label: 'Women', share: 48.6, lean: 0, party: '' };
+
+  it("uses the state's real figure for women until the user edits it", () => {
+    expect(groupShare(women, 'Bihar')).toBe(STATE_GENDER.Bihar.voters);
+    expect(groupShare({ ...women, share: 40, shareEdited: true }, 'Bihar')).toBe(40);
+  });
+
+  it('keeps the national default for states without data', () => {
+    expect(groupShare(women, 'Nowhere')).toBe(48.6);
   });
 });
 

@@ -262,6 +262,7 @@ export default function PredictionPanel({
           parties={majorParties}
           info={swingInfo}
           advanced={advanced}
+          stateName={stateName}
         />
       )}
 

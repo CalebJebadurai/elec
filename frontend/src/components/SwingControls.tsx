@@ -1,5 +1,5 @@
 import { Slider } from './ui/slider';
-import { SWING_COEFFICIENTS } from '../engine/swingAdapter';
+import { STATE_GENDER, SWING_COEFFICIENTS, groupShare } from '../engine/swingAdapter';
 import type { AppPredictionParams, VoterGroupSetting } from '../types';
 
 export interface SwingInfo {
@@ -14,6 +14,7 @@ interface Props {
   parties: string[];
   info: SwingInfo;
   advanced: boolean;
+  stateName?: string | null;
 }
 
 const pts = (x: number) => `${x > 0 ? '+' : ''}${x.toFixed(1)}`;
@@ -69,13 +70,21 @@ function SwingSlider({
   );
 }
 
-export default function SwingControls({ params, onChange, parties, info, advanced }: Props) {
+export default function SwingControls({
+  params,
+  onChange,
+  parties,
+  info,
+  advanced,
+  stateName,
+}: Props) {
   const set = (patch: Partial<AppPredictionParams>) => onChange({ ...params, ...patch });
   const setParty = (party: string, v: number) =>
     set({ swingParty: { ...params.swingParty, [party]: v } });
   const setGroup = (id: string, patch: Partial<VoterGroupSetting>) =>
     set({ voterGroups: params.voterGroups.map((g) => (g.id === id ? { ...g, ...patch } : g)) });
   const others = parties.filter((p) => p !== info.largest).slice(0, advanced ? 6 : 3);
+  const gender = stateName ? STATE_GENDER[stateName] : undefined;
   const { turnout, electorateGrowth } = SWING_COEFFICIENTS.effects;
   const [hold, holdMulti] = [SWING_COEFFICIENTS.seat.w[3], SWING_COEFFICIENTS.seat.w[4]];
   const evidence = (e: { perPoint: number; se: number }) =>
@@ -153,13 +162,21 @@ export default function SwingControls({ params, onChange, parties, info, advance
           <h3 className="text-sm font-semibold text-primary-300 mt-4 mb-1">Voter groups</h3>
           <p className="text-xs text-neutral-500 mb-2">
             Results data has no votes by gender or age, so these are your assumptions (e.g. from a
-            survey), not model output. A group that is S% of voters swinging L points to a party
-            moves its state share by S×L/100 points. Groups overlap, so effects add up only
-            approximately.
+            survey), not model output. In past results, seats where more women voted did not behave
+            differently, so the model itself has no gender term. A group that is S% of voters
+            swinging L points to a party moves its state share by S×L/100 points. Groups overlap, so
+            effects add up only approximately.
           </p>
           {params.voterGroups.map((g) => (
             <fieldset key={g.id} className="border border-neutral-800 rounded-lg p-3 mb-2">
               <legend className="text-xs font-medium text-neutral-300 px-1">{g.label}</legend>
+              {g.id === 'women' && gender && (
+                <p className="text-xs text-neutral-500 mb-2">
+                  {gender.voters}% of voters at the last election; women&apos;s turnout was{' '}
+                  {Math.abs(gender.turnoutGap)} pts {gender.turnoutGap >= 0 ? 'above' : 'below'}{' '}
+                  men&apos;s.
+                </p>
+              )}
               <div className="flex items-center gap-2 mb-2">
                 <label className="text-xs text-neutral-400 flex items-center gap-1">
                   Share
@@ -168,9 +185,12 @@ export default function SwingControls({ params, onChange, parties, info, advance
                     min={0}
                     max={100}
                     step={0.1}
-                    value={g.share}
+                    value={groupShare(g, stateName)}
                     onChange={(e) =>
-                      setGroup(g.id, { share: Math.max(0, Math.min(100, +e.target.value || 0)) })
+                      setGroup(g.id, {
+                        share: Math.max(0, Math.min(100, +e.target.value || 0)),
+                        shareEdited: true,
+                      })
                     }
                     className="w-16 rounded border border-neutral-800 bg-[#1e1e1e] px-1 py-1 text-xs text-neutral-200"
                     aria-label={`${g.label} share of voters`}
@@ -199,7 +219,7 @@ export default function SwingControls({ params, onChange, parties, info, advance
                 max={20}
                 hint={
                   g.party && g.lean
-                    ? `${g.party} ${pts((g.share * g.lean) / 100)} pts state-wide`
+                    ? `${g.party} ${pts((groupShare(g, stateName) * g.lean) / 100)} pts state-wide`
                     : undefined
                 }
               />

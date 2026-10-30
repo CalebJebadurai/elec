@@ -101,6 +101,13 @@ Largest party right      71 / 125             8 / 20 (formula: 6 / 20)
 
       <Section title="What we tried that did not help">
         <p>
+          Women&apos;s turnout: across 384 Lok Sabha seats (2019→2024) and 1,980 assembly seats
+          (2023–26), places where women&apos;s turnout rose or women made up more of the voters
+          showed no reliable difference in results, so the model has no gender term. This compares
+          places; it says nothing about how women individually voted. Women&apos;s share of voters
+          in the voter-group sliders comes from each state&apos;s latest ECI report.
+        </p>
+        <p>
           Giving recent elections more weight made no real difference. Treating the chief
           minister&apos;s party as the incumbent, instead of the party that won most seats last
           time, made forecasts slightly worse (49.1% vs 49.7% of seats on 2000–2022). We kept the
