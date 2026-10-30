@@ -7,6 +7,7 @@ import { useStateSelection } from '../contexts/StateContext';
 import { seatsForYear, marginHistogram, marginalByParty } from '../lib/marginal';
 import Term from './Term';
 import type { ConstituencySwingRow } from '../types';
+import DataSourceStamp from './DataSourceStamp';
 
 export default function MarginalSeats() {
   const { selectedState, electionType } = useStateSelection();
@@ -185,6 +186,10 @@ export default function MarginalSeats() {
           </tbody>
         </table>
       </div>
+      <DataSourceStamp
+        viewTitle={`Marginal seats, ${selectedState.replace(/_/g, ' ')} ${year}`}
+        latestYear={year}
+      />
     </div>
   );
 }

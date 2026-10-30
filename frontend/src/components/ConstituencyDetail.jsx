@@ -18,6 +18,7 @@ import { partyColor, normalizeParty } from '../constants';
 import { useStateSelection } from '../contexts/StateContext';
 import ConstituencySummaryCard from './ConstituencySummaryCard';
 import Term from './Term';
+import DataSourceStamp from './DataSourceStamp';
 
 export default function ConstituencyDetail({ name, onBack }) {
   const { selectedState, electionType } = useStateSelection();
@@ -236,6 +237,10 @@ export default function ConstituencyDetail({ name, onBack }) {
           </tbody>
         </table>
       </div>
+      <DataSourceStamp
+        viewTitle={`${data.constituency_name} constituency election history`}
+        latestYear={results.length ? results[results.length - 1].year : null}
+      />
     </div>
   );
 }

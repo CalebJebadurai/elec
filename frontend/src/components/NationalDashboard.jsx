@@ -6,6 +6,7 @@ import { useLowData } from '../lib/lowData';
 import PartyStrengthChart from './PartyStrengthChart';
 import ElectionTimeline from './ElectionTimeline';
 import StateComparison from './StateComparison';
+import DataSourceStamp from './DataSourceStamp';
 
 const TABS = [
   { key: 'map', label: 'Map' },
@@ -358,6 +359,7 @@ export default function NationalDashboard({ initialTab }) {
           onStateClick={handleStateClick}
         />
       )}
+      <DataSourceStamp viewTitle="National election dashboard, India" />
     </div>
   );
 }
