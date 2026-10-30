@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../api';
+import SimulationBadge from './SimulationBadge';
 
 export default function MyBookmarks({ onLoad }) {
   const { user } = useAuth();
@@ -68,7 +69,10 @@ export default function MyBookmarks({ onLoad }) {
         {bookmarks.map((b) => (
           <div key={b.id} className="bg-neutral-900 border border-neutral-800 rounded-xl p-4">
             <div className="flex flex-col gap-1 mb-2 md:flex-row md:items-center md:justify-between">
-              <h4 className="text-sm font-semibold text-white">{b.title}</h4>
+              <div className="flex flex-wrap items-center gap-2">
+                <h4 className="text-sm font-semibold text-white">{b.title}</h4>
+                <SimulationBadge />
+              </div>
               <div className="flex items-center gap-2 flex-wrap">
                 {b.params?.state_name && (
                   <span className="inline-block bg-primary-900/40 text-primary-300 text-xs px-2 py-0.5 rounded-full">

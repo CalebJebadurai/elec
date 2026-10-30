@@ -197,7 +197,7 @@ export default function PredictionConstituencyTable({
               >
                 {latestYr} Margin{sortIcon('marginLatest')}
               </th>
-              <th scope="col">{nextYr} Predicted</th>
+              <th scope="col">{nextYr} Simulated</th>
               <th
                 scope="col"
                 onClick={() => handleSort('marginNext')}
