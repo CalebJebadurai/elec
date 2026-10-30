@@ -58,6 +58,15 @@ class YearSummary(BaseModel):
     candidate_count: int
 
 
+class GenderYear(BaseModel):
+    year: int
+    candidates: int
+    female_candidates: int
+    winners: int
+    female_winners: int
+    unknown_sex: int
+
+
 class PartySummary(BaseModel):
     party: str | None = None
     candidate_count: int

@@ -76,3 +76,11 @@ async def test_state_swing_allows_anonymous(client):
     """State swing endpoint allows anonymous access."""
     response = await client.get("/swings/state?state=Tamil_Nadu")
     assert response.status_code != 401
+
+
+@pytest.mark.anyio
+async def test_gender_allows_anonymous(client):
+    """Women's representation data is public."""
+    response = await client.get("/gender?state=Tamil_Nadu")
+    assert response.status_code == 200
+    assert isinstance(response.json(), list)

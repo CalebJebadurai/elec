@@ -13,6 +13,7 @@ from models import (
     DistrictSummary,
     Election,
     ElectionListItem,
+    GenderYear,
     PaginatedElections,
     PaginatedElectionsList,
     PartySummary,
@@ -305,6 +306,36 @@ async def list_years(state: str = Query(...), election_type: str = Query("AE"), 
         state,
     )
     return [YearSummary(**dict(r)) for r in rows]
+
+
+# ---------------------------------------------------------------------------
+# GET /gender  — candidates and winners by sex per general election
+# ---------------------------------------------------------------------------
+@router.get("/gender", response_model=list[GenderYear])
+async def gender_representation(state: str = Query(...), election_type: str = Query("AE"), _user: dict | None = Depends(get_current_user)):
+    cache_key = f"gender:{state}:{election_type}"
+    cached = _get_cached(cache_key)
+    if cached is not None:
+        return cached
+    pool = await get_pool()
+    general_years = await _get_general_years(pool, state, election_type)
+    et_sql = _et_filter(election_type)
+    # TCPD records sex as M/F/O, sometimes spelled out; NOTA rows are not candidates.
+    rows = await pool.fetch(
+        f"SELECT year,"
+        f" COUNT(*) AS candidates,"
+        f" COUNT(*) FILTER (WHERE UPPER(sex) IN ('F', 'FEMALE')) AS female_candidates,"
+        f" COUNT(*) FILTER (WHERE position = 1) AS winners,"
+        f" COUNT(*) FILTER (WHERE position = 1 AND UPPER(sex) IN ('F', 'FEMALE')) AS female_winners,"
+        f" COUNT(*) FILTER (WHERE sex IS NULL OR TRIM(sex) = '') AS unknown_sex"
+        f" FROM tcpd_ae WHERE state_name = $1 AND {et_sql} AND year = ANY($2)"
+        f" AND COALESCE(UPPER(party), '') <> 'NOTA'"
+        f" GROUP BY year ORDER BY year",
+        state, general_years,
+    )
+    result = [GenderYear(**dict(r)) for r in rows]
+    _set_cached(cache_key, result)
+    return result
 
 
 # ---------------------------------------------------------------------------

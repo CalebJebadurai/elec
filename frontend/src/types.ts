@@ -86,6 +86,15 @@ export interface PartySummary {
   total_votes: number;
 }
 
+export interface GenderYear {
+  year: number;
+  candidates: number;
+  female_candidates: number;
+  winners: number;
+  female_winners: number;
+  unknown_sex: number;
+}
+
 export interface ConstituencySummary {
   constituency_name: string | null;
   constituency_type: string | null;
