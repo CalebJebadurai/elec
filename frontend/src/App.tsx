@@ -22,6 +22,7 @@ const LearnPage = lazy(() => import('./components/LearnPage'));
 const MethodologyPage = lazy(() => import('./components/MethodologyPage'));
 const MarginalSeats = lazy(() => import('./components/MarginalSeats'));
 const ClaimCheck = lazy(() => import('./components/ClaimCheck'));
+const VoterInfoPage = lazy(() => import('./components/VoterInfoPage'));
 import ElectionTypeToggle from './components/ElectionTypeToggle';
 import Disclaimer from './components/Disclaimer';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -495,6 +496,14 @@ export default function App() {
                               onClick={() => navigate('/learn')}
                             >
                               Learn how seats are won
+                            </button>{' '}
+                            · First-time voter?{' '}
+                            <button
+                              type="button"
+                              className="text-primary-300 underline cursor-pointer"
+                              onClick={() => navigate('/vote')}
+                            >
+                              How to register
                             </button>
                           </p>
                           <div className="grid grid-cols-2 gap-3 mt-10 md:grid-cols-4 md:gap-4">
@@ -683,6 +692,7 @@ export default function App() {
                   <Route path="/support" element={<SupportPage />} />
                   <Route path="/glossary" element={<GlossaryPage />} />
                   <Route path="/learn" element={<LearnPage />} />
+                  <Route path="/vote" element={<VoterInfoPage />} />
                   <Route path="/methodology" element={<MethodologyPage />} />
 
                   {/* Backward compatibility redirects */}
@@ -753,6 +763,17 @@ export default function App() {
                 }}
               >
                 Terms of Service
+              </a>
+              {' · '}
+              <a
+                href="/vote"
+                className="text-primary-400 hover:underline"
+                onClick={(e) => {
+                  e.preventDefault();
+                  navigate('/vote');
+                }}
+              >
+                Register to vote
               </a>
               {' · '}
               <a
