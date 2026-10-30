@@ -8,10 +8,14 @@
     <title>Election Swings &amp; Trends</title>
     <script>
       (function(){
-        var t = localStorage.getItem('theme');
+        // Keep in sync with src/lib/theme.ts. Applied before paint to avoid a flash.
+        var t = null;
+        try { t = localStorage.getItem('theme'); } catch (e) {}
+        if (t !== 'dark' && t !== 'light' && t !== 'contrast') {
+          t = window.matchMedia('(prefers-contrast: more)').matches ? 'contrast' : 'dark';
+        }
+        document.documentElement.setAttribute('data-theme', t);
         if (t === 'light') document.documentElement.classList.remove('dark');
-        else if (!t && !window.matchMedia('(prefers-color-scheme: dark)').matches)
-          document.documentElement.classList.remove('dark');
       })();
     </script>
     <script defer data-domain="%VITE_PLAUSIBLE_DOMAIN%" src="https://plausible.io/js/script.js"></script>

@@ -47,6 +47,7 @@ import {
 import { AnimatePresence, motion } from 'motion/react';
 import { pageTransition } from './lib/motion';
 import { isLowData, useLowData } from './lib/lowData';
+import { THEMES, useTheme, type Theme } from './lib/theme';
 import Skeleton from './components/Skeleton';
 import type { StatsSummary, PredictionDataResponse, AppPredictionParams } from './types';
 
@@ -96,6 +97,7 @@ export default function App() {
   const [showBookmarks, setShowBookmarks] = useState(false);
   const [lowData, setLowData] = useLowData();
   const [cbSafe, setCbSafe] = useState(isColourBlindSafe);
+  const [theme, setTheme] = useTheme();
 
   // App-level stats (drives dynamic headings)
   const [stats, setStats] = useState<StatsSummary | null>(null);
@@ -848,6 +850,21 @@ export default function App() {
               >
                 Colour-blind-safe colours: {cbSafe ? 'On' : 'Off'}
               </button>
+              {' · '}
+              <label>
+                Theme:{' '}
+                <select
+                  value={theme}
+                  onChange={(e) => setTheme(e.target.value as Theme)}
+                  className="bg-neutral-900 border border-neutral-800 text-neutral-200 rounded px-2 py-1 text-xs cursor-pointer min-h-[44px] md:min-h-0"
+                >
+                  {THEMES.map((t) => (
+                    <option key={t.value} value={t.value}>
+                      {t.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </p>
           </div>
         </footer>
