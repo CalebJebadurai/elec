@@ -8,7 +8,7 @@ Model v2 has the same design as below, refit on 251 election pairs through 2026 
 | Rolling backtest, v2 | Seats right | "Same party again" | Largest party right | 80% ranges held |
 |---|---|---|---|---|
 | 2000–2026 (125 elections) | **50.6%** | 44.8% | 71 / 125 | 79.9% |
-| 2023–26 (21 elections) | **54.8%** | 46.0% | 12 / 21 | ~77% |
+| 2023–26 (21 elections) | **54.8%** | 46.4% | 12 / 21 | 78.6% |
 
 Later steps tested these, and all are recorded with their results:
 - **Recency weighting and the chief minister's party** (`results/07_step2_decisions.md`): neither helped, so neither was adopted.
