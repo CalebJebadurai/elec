@@ -100,7 +100,9 @@ export default function BottomNav({ selectedState }: BottomNavProps) {
     if (item.key === 'predictions') return path.includes('/predictions');
     if (item.key === 'community') return path.includes('/community');
     if (item.key === 'overview')
-      return path.includes('/overview') || path.includes('/constituencies');
+      return (
+        path.includes('/overview') || path.includes('/constituencies') || path.includes('/marginal')
+      );
     return false;
   }
 
