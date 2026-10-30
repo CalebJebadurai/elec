@@ -4,6 +4,7 @@ import { api } from '../api';
 import { normalizeParty, partyColor } from '../constants';
 import { useStateSelection } from '../contexts/StateContext';
 import { useDebounce } from '../hooks/useDebounce';
+import { useMyConstituency } from '../hooks/useMyConstituency';
 
 export default function ConstituencyList({ onSelect }) {
   const { selectedState, electionType } = useStateSelection();
@@ -14,6 +15,9 @@ export default function ConstituencyList({ onSelect }) {
   const [filterDistrict, setFilterDistrict] = useState('');
   const [filterRegion, setFilterRegion] = useState('');
   const [sortBy, setSortBy] = useState('name');
+  const [mine] = useMyConstituency();
+  const myConstituency =
+    mine && mine.state === selectedState && mine.electionType === electionType ? mine.name : null;
 
   useEffect(() => {
     setLoading(true);
@@ -123,6 +127,16 @@ export default function ConstituencyList({ onSelect }) {
 
   return (
     <div className="mb-8">
+      {myConstituency && (
+        <button
+          type="button"
+          onClick={() => onSelect(myConstituency)}
+          className="w-full text-left bg-primary-900/30 border border-primary-800 rounded-xl px-4 py-3 mb-3 text-sm text-neutral-200 hover:border-primary-400 cursor-pointer"
+        >
+          ★ Your constituency: <strong className="text-white">{myConstituency}</strong>
+          <span className="text-primary-300 ml-2">View →</span>
+        </button>
+      )}
       <div className="flex flex-col gap-2 mb-3 md:flex-row md:flex-wrap md:items-center">
         <input
           type="text"
