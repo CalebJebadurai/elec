@@ -1,24 +1,22 @@
 from itertools import pairwise
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import JSONResponse
 
 from auth import get_current_user, require_user
 from database import get_pool
 from models import (
+    CandidateHistory,
+    CandidateRecord,
     CandidateResult,
     ConstituencyPredictionData,
+    ConstituencyResult,
     ConstituencySummary,
     ConstituencySwing,
     ConstituencySwingRow,
-    ConstituencyResult,
     DistrictSummary,
     Election,
-    CandidateHistory,
-    CandidateRecord,
     ElectionListItem,
     GenderYear,
-    PaginatedElections,
     PaginatedElectionsList,
     PartySummary,
     PredictionDataResponse,
@@ -31,8 +29,8 @@ from models import (
 router = APIRouter()
 
 # ── Server-side response cache (Redis-backed with in-memory fallback) ──
-from cache import get_cached as _get_cached_async, set_cached as _set_cached_async
 import time as _time
+
 _CACHE_TTL = 86400  # 24 hours — election data is static between ingestion events
 
 # Sync wrappers are replaced by async calls in the endpoints

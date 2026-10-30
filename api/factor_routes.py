@@ -3,7 +3,7 @@
 import json
 import os
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import ORJSONResponse
 
 factor_router = APIRouter(prefix="/factors", tags=["factors"])

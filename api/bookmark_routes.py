@@ -70,7 +70,7 @@ class CreateBookmarkRequest(BaseModel):
                 raise ValueError("allianceConfig must be a list of max 20 alliances")
             for bloc in ac:
                 if not isinstance(bloc, dict):
-                    raise ValueError("Each alliance must be an object")
+                    raise ValueError("Each alliance must be an object")  # noqa: TRY004 - pydantic needs ValueError
                 eff = bloc.get("transferEfficiency", 0.85)
                 if isinstance(eff, (int, float)) and not (0.5 <= eff <= 1.0):
                     raise ValueError("transferEfficiency must be between 0.5 and 1.0")
@@ -317,46 +317,45 @@ async def vote_bookmark(
         user_id, bookmark_id,
     )
 
-    async with pool.acquire() as conn:
-        async with conn.transaction():
-            if existing is None:
-                # New vote
-                await conn.execute(
-                    "INSERT INTO votes (user_id, bookmark_id, vote_type) VALUES ($1, $2, $3)",
-                    user_id, bookmark_id, body.vote_type,
-                )
-                col = "like_count" if body.vote_type == "like" else "dislike_count"
-                updated = await conn.fetchrow(
-                    f"UPDATE bookmarks SET {col} = {col} + 1 WHERE id = $1 "
-                    f"RETURNING like_count, dislike_count",
-                    bookmark_id,
-                )
-                current_vote = body.vote_type
-            elif existing["vote_type"] == body.vote_type:
-                # Same vote type → remove (toggle off)
-                await conn.execute("DELETE FROM votes WHERE id = $1", existing["id"])
-                col = "like_count" if body.vote_type == "like" else "dislike_count"
-                updated = await conn.fetchrow(
-                    f"UPDATE bookmarks SET {col} = GREATEST({col} - 1, 0) WHERE id = $1 "
-                    f"RETURNING like_count, dislike_count",
-                    bookmark_id,
-                )
-                current_vote = None
-            else:
-                # Switch vote
-                old_col = "like_count" if existing["vote_type"] == "like" else "dislike_count"
-                new_col = "like_count" if body.vote_type == "like" else "dislike_count"
-                await conn.execute(
-                    "UPDATE votes SET vote_type = $1 WHERE id = $2",
-                    body.vote_type, existing["id"],
-                )
-                updated = await conn.fetchrow(
-                    f"UPDATE bookmarks SET {old_col} = GREATEST({old_col} - 1, 0), "
-                    f"{new_col} = {new_col} + 1 WHERE id = $1 "
-                    f"RETURNING like_count, dislike_count",
-                    bookmark_id,
-                )
-                current_vote = body.vote_type
+    async with pool.acquire() as conn, conn.transaction():
+        if existing is None:
+            # New vote
+            await conn.execute(
+                "INSERT INTO votes (user_id, bookmark_id, vote_type) VALUES ($1, $2, $3)",
+                user_id, bookmark_id, body.vote_type,
+            )
+            col = "like_count" if body.vote_type == "like" else "dislike_count"
+            updated = await conn.fetchrow(
+                f"UPDATE bookmarks SET {col} = {col} + 1 WHERE id = $1 "
+                f"RETURNING like_count, dislike_count",
+                bookmark_id,
+            )
+            current_vote = body.vote_type
+        elif existing["vote_type"] == body.vote_type:
+            # Same vote type → remove (toggle off)
+            await conn.execute("DELETE FROM votes WHERE id = $1", existing["id"])
+            col = "like_count" if body.vote_type == "like" else "dislike_count"
+            updated = await conn.fetchrow(
+                f"UPDATE bookmarks SET {col} = GREATEST({col} - 1, 0) WHERE id = $1 "
+                f"RETURNING like_count, dislike_count",
+                bookmark_id,
+            )
+            current_vote = None
+        else:
+            # Switch vote
+            old_col = "like_count" if existing["vote_type"] == "like" else "dislike_count"
+            new_col = "like_count" if body.vote_type == "like" else "dislike_count"
+            await conn.execute(
+                "UPDATE votes SET vote_type = $1 WHERE id = $2",
+                body.vote_type, existing["id"],
+            )
+            updated = await conn.fetchrow(
+                f"UPDATE bookmarks SET {old_col} = GREATEST({old_col} - 1, 0), "
+                f"{new_col} = {new_col} + 1 WHERE id = $1 "
+                f"RETURNING like_count, dislike_count",
+                bookmark_id,
+            )
+            current_vote = body.vote_type
 
     return {
         "like_count": updated["like_count"],

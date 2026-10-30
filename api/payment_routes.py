@@ -5,7 +5,7 @@ import hmac
 import json
 import logging
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import razorpay
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -161,7 +161,7 @@ async def razorpay_webhook(request: Request):
             logger.warning("Unknown subscription %s in webhook %s", rz_sub_id, event_id)
             return JSONResponse({"status": "unknown_subscription"})
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         if event_type == "subscription.activated":
             await pool.execute(
@@ -172,7 +172,7 @@ async def razorpay_webhook(request: Request):
 
         elif event_type == "subscription.charged":
             period_end_ts = entity.get("current_end")
-            period_end = datetime.fromtimestamp(period_end_ts, tz=timezone.utc) if period_end_ts else now + timedelta(days=30)
+            period_end = datetime.fromtimestamp(period_end_ts, tz=UTC) if period_end_ts else now + timedelta(days=30)
             await pool.execute(
                 "UPDATE subscriptions SET status = 'active', current_period_end = $2, grace_period_end = NULL WHERE id = $1",
                 sub["id"], period_end,

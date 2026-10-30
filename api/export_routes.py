@@ -2,7 +2,7 @@
 
 import csv
 import io
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
@@ -39,14 +39,13 @@ async def _stream_csv(state: str, election_type: str, year: int | None) -> Async
     buf.seek(0)
     buf.truncate()
 
-    async with pool.acquire() as conn:
-        async with conn.transaction():
-            async for record in conn.cursor(query, *params):
-                row = [record.get(col, "") for col in _EXPORT_COLUMNS]
-                writer.writerow(row)
-                yield buf.getvalue()
-                buf.seek(0)
-                buf.truncate()
+    async with pool.acquire() as conn, conn.transaction():
+        async for record in conn.cursor(query, *params):
+            row = [record.get(col, "") for col in _EXPORT_COLUMNS]
+            writer.writerow(row)
+            yield buf.getvalue()
+            buf.seek(0)
+            buf.truncate()
 
 
 @export_router.get("/csv")

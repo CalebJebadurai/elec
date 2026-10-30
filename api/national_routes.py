@@ -6,8 +6,8 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query
 
-from auth import get_current_user, require_user
-from cache import get_cached, set_cached, get_cached_with_lock
+from auth import get_current_user
+from cache import get_cached, get_cached_with_lock, set_cached
 from database import get_pool
 from models import (
     NationalPartyStrength,
@@ -559,7 +559,6 @@ async def party_map(
 # ---------------------------------------------------------------------------
 async def warm_cache():
     """Pre-compute commonly used national queries."""
-    pool = await get_pool()
     _fake_user = {"sub": "cache-warm"}
     for fn, kwargs in [
         (upcoming_elections, {}),
@@ -571,7 +570,7 @@ async def warm_cache():
         try:
             await fn(**kwargs)
         except Exception:
-            pass
+            logger.warning("Cache warm failed for %s", fn.__name__, exc_info=True)
 
 
 # ---------------------------------------------------------------------------

@@ -9,7 +9,7 @@ import razorpay
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
 from auth import require_user
-from cache import get_cached, set_cached, invalidate, _get_redis
+from cache import _get_redis
 from database import get_pool
 from ingest import ingest_csv
 

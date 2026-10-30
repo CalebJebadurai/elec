@@ -7,11 +7,10 @@ import time as _time
 
 import httpx
 import jwt as pyjwt
-
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, field_validator
 
-from auth import create_token, require_user, set_auth_cookies, clear_auth_cookies
+from auth import clear_auth_cookies, create_token, require_user, set_auth_cookies
 from database import get_pool
 
 auth_router = APIRouter()
@@ -234,7 +233,7 @@ async def _fetch_google_birthday(access_token: str):
             if d.get("year") and d.get("month") and d.get("day"):
                 return date(d["year"], d["month"], d["day"])
     except Exception:
-        pass
+        logger.debug("Google birthday lookup failed", exc_info=True)
     return None
 
 

@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 from auth import require_tier
 from database import get_pool
-from models import ApiKeyOut, ApiKeyCreated
+from models import ApiKeyCreated, ApiKeyOut
 
 apikey_router = APIRouter(prefix="/api-keys", tags=["api-keys"])
 

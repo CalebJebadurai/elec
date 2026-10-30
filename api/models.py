@@ -1,5 +1,6 @@
-from pydantic import BaseModel
 from datetime import datetime
+
+from pydantic import BaseModel
 
 
 class Election(BaseModel):
@@ -163,7 +164,6 @@ class PaginatedElectionsList(BaseModel):
     total: int
     limit: int
     offset: int
-    data: list[ElectionListItem]
     data: list[Election]
 
 

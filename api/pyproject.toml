@@ -3,3 +3,14 @@
 # their async fixtures and running them on a second event loop.
 asyncio_mode = "strict"
 testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py312"
+
+[tool.ruff.lint]
+# Broad excepts are deliberate: cache, view and token paths fall back or map to an HTTP error.
+ignore = ["BLE001"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI dependency markers are evaluated once by design, not mutable defaults.
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "auth.require_tier"]
