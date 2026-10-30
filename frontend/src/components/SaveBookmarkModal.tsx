@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../api';
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogClose } from './ui/dialog';
+import { PublishAckCheckbox } from './PublishAcknowledgement';
 import type { AppPredictionParams } from '../types';
 
 interface SaveBookmarkModalProps {
@@ -23,6 +24,7 @@ export default function SaveBookmarkModal({
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [isPublic, setIsPublic] = useState(false);
+  const [acked, setAcked] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -30,6 +32,10 @@ export default function SaveBookmarkModal({
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
+    if (isPublic && !acked) {
+      setError('Please confirm the simulation notice before publishing.');
+      return;
+    }
     setError('');
     setLoading(true);
 
@@ -113,13 +119,14 @@ export default function SaveBookmarkModal({
             />
             Publish publicly (others can view and react)
           </label>
+          {isPublic && <PublishAckCheckbox checked={acked} onChange={setAcked} />}
 
           <button
             type="submit"
             className="w-full rounded-lg bg-primary-400 px-4 py-2.5 text-sm font-semibold text-black transition-colors hover:bg-primary-300 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]"
-            disabled={loading}
+            disabled={loading || (isPublic && !acked)}
           >
-            {loading ? 'Saving...' : 'Save Prediction'}
+            {loading ? 'Saving...' : isPublic ? 'Save and Publish' : 'Save Prediction'}
           </button>
         </form>
       </DialogContent>
