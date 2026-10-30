@@ -16,6 +16,7 @@ const SupportPage = lazy(() => import('./components/SupportPage'));
 const LoginModal = lazy(() => import('./components/LoginModal'));
 const UserMenu = lazy(() => import('./components/UserMenu'));
 const SaveBookmarkModal = lazy(() => import('./components/SaveBookmarkModal'));
+const QuickStart = lazy(() => import('./components/QuickStart'));
 import ElectionTypeToggle from './components/ElectionTypeToggle';
 import Disclaimer from './components/Disclaimer';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -462,6 +463,7 @@ export default function App() {
                               <span className="ml-2">→</span>
                             </button>
                           </div>
+                          <QuickStart />
                           <div className="grid grid-cols-2 gap-3 mt-10 md:grid-cols-4 md:gap-4">
                             <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 text-center">
                               <div className="text-2xl mb-2">📊</div>
