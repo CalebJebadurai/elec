@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { partyColor } from '../constants';
-import IndiaMap from './IndiaMap';
+import { useLowData } from '../lib/lowData';
 import PartyStrengthChart from './PartyStrengthChart';
 import ElectionTimeline from './ElectionTimeline';
 import StateComparison from './StateComparison';
@@ -20,7 +20,11 @@ const COLOR_MODES = [
   { value: 'margin', label: 'Victory Margin' },
 ];
 
+const IndiaMap = lazy(() => import('./IndiaMap'));
+
 export default function NationalDashboard({ initialTab }) {
+  const [lowData] = useLowData();
+  const [showMapAnyway, setShowMapAnyway] = useState(false);
   const navigate = useNavigate();
   const [tab, setTab] = useState(initialTab || 'map');
   const [et, setEt] = useState('AE');
@@ -221,11 +225,31 @@ export default function NationalDashboard({ initialTab }) {
               </div>
             </div>
             <div className="flex-1 min-w-0">
-              <IndiaMap
-                stateData={stateData}
-                colorMode={colorMode}
-                onStateClick={handleStateClick}
-              />
+              {lowData && !showMapAnyway ? (
+                <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6 text-center text-sm text-neutral-400">
+                  <p className="mb-3">
+                    Map hidden to save data (about 120 KB). The state table below has the same
+                    figures.
+                  </p>
+                  <button
+                    type="button"
+                    className="bg-neutral-800 text-neutral-200 px-4 py-2 rounded-md border border-neutral-700 hover:bg-neutral-700 cursor-pointer min-h-[44px]"
+                    onClick={() => setShowMapAnyway(true)}
+                  >
+                    Show map
+                  </button>
+                </div>
+              ) : (
+                <Suspense
+                  fallback={<div className="animate-pulse bg-neutral-800 rounded-xl h-[50vh]" />}
+                >
+                  <IndiaMap
+                    stateData={stateData}
+                    colorMode={colorMode}
+                    onStateClick={handleStateClick}
+                  />
+                </Suspense>
+              )}
             </div>
           </div>
 

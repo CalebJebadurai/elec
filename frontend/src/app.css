@@ -73,3 +73,11 @@
   --font-sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --font-mono: ui-monospace, Consolas, monospace;
 }
+
+/* Low-data mode: no animations or transitions, fewer repaints on slow phones */
+.low-data *,
+.low-data *::before,
+.low-data *::after {
+  animation: none !important;
+  transition: none !important;
+}
