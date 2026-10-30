@@ -194,6 +194,12 @@ export default function ConstituencyList({ onSelect }) {
         >
           See marginal seats →
         </Link>
+        <Link
+          to={`/state/${selectedState}/claim-check`}
+          className="text-xs text-primary-300 underline md:hidden"
+        >
+          Check a claim →
+        </Link>
       </div>
 
       {/* Mobile card view — virtualized */}
