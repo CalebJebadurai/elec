@@ -5,6 +5,7 @@
  */
 import { normalizeParty } from '../constants';
 import coefficients from './data/swing_model.json';
+import stateGender from './data/state_gender.json';
 import {
   forecastSwing,
   expectedStateSwing,
@@ -17,12 +18,25 @@ import {
 import type {
   AppPredictionParams,
   CandidateResult,
+  VoterGroupSetting,
   PredictionDataResponse,
   PredictionResult,
   PredictionParty,
 } from '../types';
 
 export const SWING_COEFFICIENTS = coefficients as SwingCoefficients;
+
+/** Women's share of electors and voters, and the turnout gap, at the state's latest election. */
+export const STATE_GENDER = stateGender as Record<
+  string,
+  { electors: number; voters: number; turnoutGap: number }
+>;
+
+/** A group's share of voters: the state's real figure for women unless the user edited it. */
+export function groupShare(g: VoterGroupSetting, state: string | null | undefined): number {
+  const known = state ? STATE_GENDER[state] : undefined;
+  return g.id === 'women' && known && !g.shareEdited ? known.voters : g.share;
+}
 
 function stateShares(cands: CandidateResult[][]): Record<string, number> | null {
   const votes: Record<string, number> = {};
@@ -77,14 +91,16 @@ export function buildSwingInput(data: PredictionDataResponse): SwingInput {
   };
 }
 
-export function slidersFromParams(p: AppPredictionParams): SwingSliders {
+export function slidersFromParams(p: AppPredictionParams, state?: string | null): SwingSliders {
   return {
     rulingSwing: p.swingRuling,
     partySwing: p.swingParty,
     sittingMla: p.swingSittingMla,
     turnoutChange: p.swingTurnout,
     electorateGrowth: p.swingElectorateGrowth,
-    groups: p.voterGroups.filter((g) => g.party && g.lean !== 0),
+    groups: p.voterGroups
+      .filter((g) => g.party && g.lean !== 0)
+      .map((g) => ({ ...g, share: groupShare(g, state) })),
   };
 }
 
@@ -106,7 +122,13 @@ export function runSwingModel(
   growthFactor: number,
   draws = 400
 ): SwingRun {
-  const forecast = forecastSwing(input, SWING_COEFFICIENTS, slidersFromParams(params), draws, 7);
+  const forecast = forecastSwing(
+    input,
+    SWING_COEFFICIENTS,
+    slidersFromParams(params, data._state),
+    draws,
+    7
+  );
   const byKey = new Map(forecast.seats.map((s) => [s.key, s]));
   const turnout = params.turnoutPct / 100;
   const results: PredictionResult[] = [];

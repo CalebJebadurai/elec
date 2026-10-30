@@ -78,9 +78,9 @@ export default function MethodologyPage() {
         <p>Scored only on elections the model was not fitted on:</p>
         <Formula>{`                         2000–2026 backtest   2023–26 (pre-registered,
                          (125 elections)      model v1, 13 states)
-Learned model            50.5% of seats       58.4% of seats
+Learned model            50.6% of seats       58.4% of seats
 Same party wins again    44.8%                51.2%
-Classic formula          44.3%                50.6%
+Classic formula          44.4%                50.6%
 Largest party right      71 / 125             8 / 20 (formula: 6 / 20)
 80% ranges held          80%                  66%`}</Formula>
         <p>
@@ -96,6 +96,32 @@ Largest party right      71 / 125             8 / 20 (formula: 6 / 20)
           2024 Lok Sabha from ECI&apos;s statistical reports (Chhattisgarh 2023 is not yet published
           there). The 2024 Lok Sabha result lifted accuracy on the 2024–26 elections from 50.6% to
           54.5% of seats in the backtest.
+        </p>
+      </Section>
+
+      <Section title="What we tried that did not help">
+        <p>
+          Women&apos;s turnout: across 384 Lok Sabha seats (2019→2024) and 1,980 assembly seats
+          (2023–26), places where women&apos;s turnout rose or women made up more of the voters
+          showed no reliable difference in results, so the model has no gender term. This compares
+          places; it says nothing about how women individually voted. Women&apos;s share of voters
+          in the voter-group sliders comes from each state&apos;s latest ECI report.
+        </p>
+        <p>
+          Giving recent elections more weight made no real difference. Treating the chief
+          minister&apos;s party as the incumbent, instead of the party that won most seats last
+          time, made forecasts slightly worse (49.1% vs 49.7% of seats on 2000–2022). We kept the
+          simpler model. Full results:{' '}
+          <code className="font-mono">datascience/swing/results/07_step2_decisions.md</code>.
+        </p>
+      </Section>
+
+      <Section title="Why there is no Lok Sabha forecast">
+        <p>
+          We tested the same approach on seven general elections from 1996 to 2024. It called 49.9%
+          of seats right, below the 51.1% from &ldquo;same party wins again&rdquo;, and missed the
+          national waves of 2014 and 2019 by more than 100 seats. Without a national signal such as
+          polls, a Lok Sabha forecast here would add nothing, so we do not offer one.
         </p>
       </Section>
 

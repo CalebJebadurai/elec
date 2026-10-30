@@ -4,3 +4,4 @@ coverage
 bun.lock
 *.min.js
 src/engine/data/swing_model.json
+src/engine/data/state_gender.json

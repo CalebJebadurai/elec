@@ -2,6 +2,19 @@
 
 **What it is.** The model behind the prediction page's default "Learned model" mode (`frontend/src/engine/swingModel.ts`, coefficients in `frontend/src/engine/data/swing_model.json`). It replaces a hand-set formula that did no better than "same party wins again" (`../backtest/REPORT.md`).
 
+## Status after the 2026 data refresh
+Model v2 has the same design as below, refit on 251 election pairs through 2026 (`../refresh/README.md`). The table below records the original pre-registered test of v1 and is kept as run.
+
+| Rolling backtest, v2 | Seats right | "Same party again" | Largest party right | 80% ranges held |
+|---|---|---|---|---|
+| 2000–2026 (125 elections) | **50.6%** | 44.8% | 71 / 125 | 79.9% |
+| 2023–26 (21 elections) | **54.8%** | 46.4% | 12 / 21 | 78.6% |
+
+Later steps tested these, and all are recorded with their results:
+- **Recency weighting and the chief minister's party** (`results/07_step2_decisions.md`): neither helped, so neither was adopted.
+- **Women's turnout** (`results/08_gender.md`): no reliable link with results, so the model has no gender term.
+- **Lok Sabha forecasts** (`results/09_lok_sabha.md`): failed the gate at 49.9% vs 51.1% for persistence, so they are not in the app.
+
 ## Results (only elections the model was not fitted on)
 | | 2000–2023 rolling backtest (108 elections, 14,750 seats) | 2023–26, pre-registered (13 states seat-level, 1,641 seats; 20 on totals) |
 |---|---|---|
@@ -52,7 +65,8 @@
 Run from this folder with Bun: `bun 01_eda.ts`, `bun 02_backtest.ts`, `bun 03_freeze.ts`, `bun 04_score.ts`.
 
 ## Honest limits
-- **Anti-incumbency is pooled over 1977–2023,** although it has weakened: −12.5 pts in the 1980s, −4.4 pts since 2010. Fixing this needs a new pre-registered test.
-- **"Ruling party" means the largest party at the last election.** TCPD has no record of who governed, so coalition governments are mislabelled.
-- **The Lok Sabha signal is only as fresh as the local data.** The 2024 results are not in the local dump, so states with base elections in 2019–2021 forecast without it. Refreshing the TCPD data would add it.
+- **Anti-incumbency is pooled across all years,** although it has weakened: −12.5 pts in the 1980s, −4.4 pts since 2010. Weighting recent elections more did not improve forecasts.
+- **"Ruling party" means the largest party at the last election.** Using the chief minister's party instead made forecasts slightly worse.
+- **The Lok Sabha signal needs a Lok Sabha election after the base.** States that voted in 2026 have none until 2029.
+- **Chhattisgarh still starts from 2018.** ECI has not published its 2023 report.
 - **This tests recorded results,** not whether they reflect voters' intent.

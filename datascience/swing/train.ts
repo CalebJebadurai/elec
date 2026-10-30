@@ -1,5 +1,5 @@
 // Fitting the swing model (frontend/src/engine/swingModel.ts) on election pairs.
-import { lokSabhaBetween, type LokSabha, type Pair, type StateElection } from './data';
+import { lokSabhaBetween, governingParty, type LokSabha, type Pair, type StateElection } from './data';
 import {
   stateFeatures,
   seatFeatures,
@@ -8,8 +8,11 @@ import {
   type SwingInput,
 } from '../../frontend/src/engine/swingModel';
 
+/** Mid-term signal: state-wide shares from an election of the other kind held in between. */
+export type Signal = (base: StateElection, target: { year: number; month: number }) => Record<string, number> | null;
+
 /** Model input for forecasting `target` from `base` (only what was known before polling day). */
-export function toInput(base: StateElection, prior: StateElection | null, ls: LokSabha, target: { year: number; month: number }): SwingInput {
+export function toInput(base: StateElection, prior: StateElection | null, ls: LokSabha | Signal, target: { year: number; month: number }): SwingInput {
   return {
     seats: [...base.seats.values()].map((s) => ({
       key: String(s.no),
@@ -21,9 +24,21 @@ export function toInput(base: StateElection, prior: StateElection | null, ls: Lo
     })),
     stateShare: base.stateShare,
     priorShare: prior ? prior.stateShare : null,
-    lsShare: lokSabhaBetween(ls, base.state, base, target),
+    lsShare: typeof ls === 'function' ? ls(base, target) : lokSabhaBetween(ls, base.state, base, target),
     largest: base.largest,
+    // Experiment (step 2b): the chief minister's party instead of the largest party
+    ruling: process.env.FEATURE_CM === '1' ? governingParty(base.state, target.year, target.month) ?? undefined : undefined,
   };
+}
+
+/**
+ * Experiment (step 2a): weight each training pair by recency, halving every RECENCY_HALF
+ * years before the newest pair in the training set. Unset = equal weights (model v1/v2).
+ */
+function recencyWeights(pairs: Pair[]): Map<Pair, number> {
+  const half = Number(process.env.RECENCY_HALF || 0);
+  const newest = Math.max(...pairs.map((p) => p.target.year));
+  return new Map(pairs.map((p) => [p, half > 0 ? 0.5 ** ((newest - p.target.year) / half) : 1]));
 }
 
 /** Weighted ridge regression (intercept-free design; the caller adds a constant column). */
@@ -75,8 +90,9 @@ function fitSigma(xs: number[], absRes: number[]): [number, number] {
   return [Math.max(0.5, beta[0]), Math.max(0, beta[1])];
 }
 
-export function fit(pairs: Pair[], ls: LokSabha, trainedOn: string): SwingCoefficients {
+export function fit(pairs: Pair[], ls: LokSabha | Signal, trainedOn: string): SwingCoefficients {
   // ── Stage A: state-wide swing per party ──
+  const rw = recencyWeights(pairs);
   const XA: number[][] = [], yA: number[] = [], wA: number[] = [], sA: number[] = [];
   const largestRows: { res: number; dT: number; growth: number }[] = [];
   for (const p of pairs) {
@@ -85,7 +101,7 @@ export function fit(pairs: Pair[], ls: LokSabha, trainedOn: string): SwingCoeffi
       if (party === 'IND' || S < 1) continue;
       XA.push(stateFeatures(party, input));
       yA.push((p.target.stateShare[party] || 0) - S);
-      wA.push(Math.min(S, 30) / 10);
+      wA.push((Math.min(S, 30) / 10) * rw.get(p)!);
       sA.push(S);
     }
   }
@@ -96,7 +112,7 @@ export function fit(pairs: Pair[], ls: LokSabha, trainedOn: string): SwingCoeffi
   // After-the-fact effects on the largest party (for sliders only; never in the default forecast)
   for (const p of pairs) {
     const input = toInput(p.base, p.prior, ls, p.target);
-    const L = p.base.largest;
+    const L = input.ruling || p.base.largest;
     const S = p.base.stateShare[L] || 0;
     const res = (p.target.stateShare[L] || 0) - S - dot(A.beta, stateFeatures(L, input));
     largestRows.push({
@@ -112,7 +128,7 @@ export function fit(pairs: Pair[], ls: LokSabha, trainedOn: string): SwingCoeffi
   };
 
   // ── Stage B: seat level, given the actual state swing ──
-  const XB: number[][] = [], yB: number[] = [], vB: number[] = [];
+  const XB: number[][] = [], yB: number[] = [], vB: number[] = [], wB: number[] = [];
   let indXY = 0, indXX = 0;
   const indRes: [number, number][] = [];
   for (const p of pairs) {
@@ -133,10 +149,11 @@ export function fit(pairs: Pair[], ls: LokSabha, trainedOn: string): SwingCoeffi
         XB.push(seatFeatures(v, S, dS, party === s.winner, s.winnerTerms, s.margin));
         yB.push(t.shares[party] - v);
         vB.push(v);
+        wB.push(rw.get(p)!);
       }
     }
   }
-  const B = ridge(XB, yB, XB.map(() => 1), 1);
+  const B = ridge(XB, yB, wB, 1);
   const resB = XB.map((x, i) => Math.abs(yB[i] - dot(B.beta, x)));
   const sigmaB = fitSigma(vB.map((v, i) => Math.max(0, v + dot(B.beta, XB[i]))), resB);
   const keep = indXX ? indXY / indXX : 0;
