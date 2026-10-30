@@ -86,6 +86,26 @@ export interface PartySummary {
   total_votes: number;
 }
 
+export interface CandidateRecord {
+  year: number;
+  constituency_name: string | null;
+  party: string | null;
+  position: number | null;
+  votes: number | null;
+  vote_share_percentage: number | null;
+  margin_percentage: number | null;
+}
+
+export interface CandidateHistory {
+  pid: string;
+  candidate: string | null;
+  contests: number;
+  wins: number;
+  party_switches: number;
+  parties: string[];
+  records: CandidateRecord[];
+}
+
 export interface GenderYear {
   year: number;
   candidates: number;

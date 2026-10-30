@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { partyColor, normalizeParty } from '../constants';
 import {
   summarizeConstituency,
@@ -7,6 +7,7 @@ import {
 } from '../lib/constituencySummary';
 import { useStateSelection } from '../contexts/StateContext';
 import { useMyConstituency } from '../hooks/useMyConstituency';
+import CandidateHistoryCard from './CandidateHistoryCard';
 import type { ConstituencyResult } from '../types';
 
 interface Props {
@@ -32,6 +33,7 @@ export default function ConstituencySummaryCard({
 
   const { selectedState } = useStateSelection();
   const [mine, setMine] = useMyConstituency();
+  const [openRep, setOpenRep] = useState<string | null>(null);
   const name = latest?.constituency_name ?? null;
   const isMine =
     !!mine &&
@@ -96,21 +98,44 @@ export default function ConstituencySummaryCard({
             Past {memberTitle}s
           </h4>
           <ul className="space-y-1">
-            {representatives.map((rep) => (
-              <li
-                key={`${rep.name}-${rep.years[0]}`}
-                className="flex items-center gap-2 text-xs text-neutral-200"
-              >
-                <span
-                  aria-hidden="true"
-                  className="inline-block w-2.5 h-2.5 rounded-full shrink-0"
-                  style={{ background: partyColor(normalizeParty(rep.party)) }}
-                />
-                <span className="font-medium">{rep.name}</span>
-                <span className="text-neutral-400">{rep.party || '—'}</span>
-                <span className="ml-auto text-neutral-400 font-mono">{formatYears(rep.years)}</span>
-              </li>
-            ))}
+            {representatives.map((rep) => {
+              const repKey = `${rep.name}-${rep.years[0]}`;
+              const open = openRep === repKey;
+              return (
+                <li key={repKey} className="text-xs text-neutral-200">
+                  <div className="flex items-center gap-2">
+                    <span
+                      aria-hidden="true"
+                      className="inline-block w-2.5 h-2.5 rounded-full shrink-0"
+                      style={{ background: partyColor(normalizeParty(rep.party)) }}
+                    />
+                    <span className="font-medium">{rep.name}</span>
+                    <span className="text-neutral-400">{rep.party || '—'}</span>
+                    <span className="ml-auto text-neutral-400 font-mono">
+                      {formatYears(rep.years)}
+                    </span>
+                    {name && (
+                      <button
+                        type="button"
+                        aria-expanded={open}
+                        onClick={() => setOpenRep(open ? null : repKey)}
+                        className="text-primary-300 underline cursor-pointer min-h-[44px] md:min-h-0 px-1"
+                      >
+                        {open ? 'Hide' : 'History'}
+                      </button>
+                    )}
+                  </div>
+                  {open && name && (
+                    <CandidateHistoryCard
+                      state={selectedState}
+                      constituency={name}
+                      year={rep.years[rep.years.length - 1]}
+                      electionType={electionType}
+                    />
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </>
       )}
