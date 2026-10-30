@@ -74,8 +74,91 @@ function _hashColor(str: string): string {
   return `hsl(${h}, 55%, 45%)`;
 }
 
+/**
+ * Okabe-Ito palette: distinguishable with the common forms of colour blindness.
+ * https://jfly.uni-koeln.de/color/
+ */
+export const OKABE_ITO = {
+  orange: '#E69F00',
+  skyBlue: '#56B4E9',
+  green: '#009E73',
+  yellow: '#F0E442',
+  blue: '#0072B2',
+  vermillion: '#D55E00',
+  purple: '#CC79A7',
+  black: '#000000',
+} as const;
+
+const CB = OKABE_ITO;
+
+/** Colour-blind-safe party colours; main rivals in each state get different hues. */
+export const CB_PARTY_COLORS: Record<string, string> = {
+  BJP: CB.orange,
+  INC: CB.skyBlue,
+  BSP: CB.blue,
+  SP: CB.vermillion,
+  CPM: CB.vermillion,
+  CPI: CB.vermillion,
+  NCP: CB.purple,
+  AITC: CB.green,
+  AAP: CB.blue,
+  'JD(U)': CB.green,
+  'JD(S)': CB.green,
+  RJD: CB.purple,
+  SAD: CB.blue,
+  JMM: CB.green,
+  DMK: CB.vermillion,
+  ADMK: CB.green,
+  TDP: CB.yellow,
+  YSRCP: CB.blue,
+  BJD: CB.green,
+  PMK: CB.yellow,
+  SHS: CB.vermillion,
+  BRS: CB.purple,
+  IND: '#999999',
+  NOTA: '#bbbbbb',
+};
+
+const CB_CYCLE = [CB.orange, CB.skyBlue, CB.green, CB.yellow, CB.blue, CB.vermillion, CB.purple];
+
+let _colourBlindSafe = false;
+try {
+  _colourBlindSafe =
+    typeof localStorage !== 'undefined' && localStorage.getItem('colour_blind_safe') === '1';
+} catch {
+  // Storage unavailable; default palette
+}
+
+export function isColourBlindSafe(): boolean {
+  return _colourBlindSafe;
+}
+
+/** Switch palettes. Callers re-render the UI (App remounts its routes on change). */
+export function setColourBlindSafe(on: boolean): void {
+  _colourBlindSafe = on;
+  try {
+    localStorage.setItem('colour_blind_safe', on ? '1' : '0');
+  } catch {
+    // Storage unavailable; lasts for this page load
+  }
+}
+
+function _hashIndex(str: string, n: number): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return Math.abs(hash) % n;
+}
+
 export function partyColor(party: string | null | undefined): string {
   const key = party ?? '';
+  if (_colourBlindSafe) {
+    const norm = normalizeParty(party);
+    return (
+      CB_PARTY_COLORS[key] || CB_PARTY_COLORS[norm] || CB_CYCLE[_hashIndex(norm, CB_CYCLE.length)]
+    );
+  }
   return PARTY_COLORS[key] || PARTY_COLORS[normalizeParty(party)] || _hashColor(party || 'IND');
 }
 

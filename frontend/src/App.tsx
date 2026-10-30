@@ -31,7 +31,13 @@ import { useAuth } from './contexts/AuthContext';
 import { useStateSelection } from './contexts/StateContext';
 import { useDebounce } from './hooks/useDebounce';
 import { api } from './api';
-import { DEFAULT_PREDICTION_PARAMS, normalizeParty, buildAffinityPresets } from './constants';
+import {
+  DEFAULT_PREDICTION_PARAMS,
+  normalizeParty,
+  buildAffinityPresets,
+  isColourBlindSafe,
+  setColourBlindSafe,
+} from './constants';
 import {
   generateBaseline,
   applyNewParty,
@@ -89,6 +95,7 @@ export default function App() {
   const [showSave, setShowSave] = useState(false);
   const [showBookmarks, setShowBookmarks] = useState(false);
   const [lowData, setLowData] = useLowData();
+  const [cbSafe, setCbSafe] = useState(isColourBlindSafe);
 
   // App-level stats (drives dynamic headings)
   const [stats, setStats] = useState<StatsSummary | null>(null);
@@ -454,7 +461,7 @@ export default function App() {
         <main id="main-content" role="main">
           <Suspense fallback={<Loading />}>
             <AnimatePresence mode="wait">
-              <motion.div key={path} {...(lowData ? {} : pageTransition)}>
+              <motion.div key={`${path}:${cbSafe}`} {...(lowData ? {} : pageTransition)}>
                 <Routes>
                   {/* Landing page */}
                   <Route
@@ -828,6 +835,18 @@ export default function App() {
                 className="text-primary-400 hover:underline cursor-pointer min-h-[44px] md:min-h-0"
               >
                 Low-data mode: {lowData ? 'On' : 'Off'}
+              </button>
+              {' · '}
+              <button
+                type="button"
+                aria-pressed={cbSafe}
+                onClick={() => {
+                  setColourBlindSafe(!cbSafe);
+                  setCbSafe(!cbSafe);
+                }}
+                className="text-primary-400 hover:underline cursor-pointer min-h-[44px] md:min-h-0"
+              >
+                Colour-blind-safe colours: {cbSafe ? 'On' : 'Off'}
               </button>
             </p>
           </div>
