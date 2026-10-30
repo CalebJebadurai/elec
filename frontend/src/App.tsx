@@ -744,6 +744,15 @@ export default function App() {
                 className="text-primary-400 hover:underline"
               >
                 Trivedi Centre for Political Data (TCPD), Ashoka University
+              </a>{' '}
+              · Download the original data from{' '}
+              <a
+                href="https://lokdhaba.ashoka.edu.in/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary-400 hover:underline"
+              >
+                Lok Dhaba
               </a>
             </p>
             <p>

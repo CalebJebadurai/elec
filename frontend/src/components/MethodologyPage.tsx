@@ -167,7 +167,17 @@ share    = share × clamp(product of modifiers, 0.5, 2.0)`}</Formula>
         <Link to="/glossary" className="text-primary-300 underline">
           glossary
         </Link>
-        . Data: Trivedi Centre for Political Data (TCPD), Ashoka University.
+        . Data: Trivedi Centre for Political Data (TCPD), Ashoka University; the original
+        constituency-level files are on{' '}
+        <a
+          href="https://lokdhaba.ashoka.edu.in/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary-300 underline"
+        >
+          Lok Dhaba
+        </a>
+        .
       </p>
     </div>
   );

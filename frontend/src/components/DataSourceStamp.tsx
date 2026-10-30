@@ -1,5 +1,11 @@
 import { useState } from 'react';
-import { TCPD_DATASET, TCPD_URL, formatSnapshot, viewCitation } from '../content/dataSource';
+import {
+  TCPD_DATASET,
+  TCPD_URL,
+  LOK_DHABA_URL,
+  formatSnapshot,
+  viewCitation,
+} from '../content/dataSource';
 
 interface Props {
   /** Short title of what is on screen, used in the citation */
@@ -39,7 +45,15 @@ export default function DataSourceStamp({ viewTitle, latestYear }: Props) {
         >
           {TCPD_DATASET}, Trivedi Centre for Political Data, Ashoka University
         </a>{' '}
-        · data snapshot {formatSnapshot()}
+        · data snapshot {formatSnapshot()} ·{' '}
+        <a
+          href={LOK_DHABA_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary-300 underline"
+        >
+          Raw data on Lok Dhaba
+        </a>
         {latestYear ? ` · latest election shown: ${latestYear}` : ''} ·{' '}
         <button
           type="button"
