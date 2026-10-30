@@ -6,6 +6,7 @@ import { partyColor, normalizeParty } from '../constants';
 import { useStateSelection } from '../contexts/StateContext';
 import { seatsForYear, marginHistogram, marginalByParty } from '../lib/marginal';
 import Term from './Term';
+import WinnableSeats from './WinnableSeats';
 import type { ConstituencySwingRow } from '../types';
 import DataSourceStamp from './DataSourceStamp';
 
@@ -186,6 +187,7 @@ export default function MarginalSeats() {
           </tbody>
         </table>
       </div>
+      <WinnableSeats rows={rows} year={year} stateName={selectedState} />
       <DataSourceStamp
         viewTitle={`Marginal seats, ${selectedState.replace(/_/g, ' ')} ${year}`}
         latestYear={year}
