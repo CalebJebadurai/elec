@@ -1,6 +1,7 @@
 // Election-pair dataset for the swing model: every general assembly election in the local
 // TCPD dump, paired with the next one in the same state under the same boundaries.
 // Only information known on the day before the target election goes into the features.
+import { existsSync } from 'node:fs';
 import { readCsv, num, type Row } from '../backtest/csv';
 import { normalizeParty } from '../../frontend/src/constants';
 
@@ -177,8 +178,32 @@ export function buildPairs(elections: StateElection[]): Pair[] {
   return pairs;
 }
 
+// Newer results converted from ECI statistical reports (datascience/refresh); used when present
+const AE_NEW = new URL('../refresh/raw/ae_2023_26_tcpd.csv', import.meta.url).pathname;
+const GE_NEW = new URL('../refresh/raw/ge_2024_tcpd.csv', import.meta.url).pathname;
+
+/** TCPD rows plus newer ECI rows for state-years TCPD does not have. */
+function withNew(base: Row[], path: string): Row[] {
+  if (!existsSync(path)) return base;
+  const have = new Set(base.map((r) => `${r.State_Name}|${r.Year}`));
+  return [...base, ...readCsv(path).filter((r) => !have.has(`${r.State_Name}|${r.Year}`))];
+}
+
 let cache: { elections: StateElection[]; ls: LokSabha } | null = null;
-export function load() {
-  if (!cache) cache = { elections: buildElections(readCsv(AE_PATH)), ls: buildLokSabha(readCsv(GE_PATH)) };
-  return cache;
+/**
+ * Load elections. `untilYear` drops everything after it (so a test can see the world as it
+ * was), and NO_NEW_DATA=1 ignores the ECI supplement (TCPD dump only).
+ */
+export function load(untilYear = Infinity) {
+  if (!cache) {
+    const useNew = process.env.NO_NEW_DATA !== '1';
+    const ae = useNew ? withNew(readCsv(AE_PATH), AE_NEW) : readCsv(AE_PATH);
+    const ge = useNew && process.env.NO_LS2024 !== '1' ? withNew(readCsv(GE_PATH), GE_NEW) : readCsv(GE_PATH);
+    cache = { elections: buildElections(ae), ls: buildLokSabha(ge) };
+  }
+  if (untilYear === Infinity) return cache;
+  return {
+    elections: cache.elections.filter((e) => e.year <= untilYear),
+    ls: { ...cache.ls, shares: Object.fromEntries(Object.entries(cache.ls.shares).map(([st, ys]) => [st, Object.fromEntries(Object.entries(ys).filter(([y]) => Number(y) <= untilYear))])) },
+  };
 }
