@@ -191,6 +191,12 @@ export function normalizeParty(p: string | null | undefined): string {
   // NCP variants
   if (u === 'NCP(SP)' || u === 'NCP-SP') return 'NCP';
 
+  // CPIM → CPM (TCPD codes CPI(M) both ways)
+  if (u === 'CPIM') return 'CPM';
+
+  // AAP → AAAP (TCPD codes the Aam Aadmi Party both ways; both only after 2012)
+  if (u === 'AAP') return 'AAAP';
+
   // TRS → BRS (Telangana Rashtra Samithi renamed to Bharat Rashtra Samithi)
   if (u === 'TRS') return 'BRS';
 
