@@ -58,6 +58,26 @@ class YearSummary(BaseModel):
     candidate_count: int
 
 
+class CandidateRecord(BaseModel):
+    year: int
+    constituency_name: str | None = None
+    party: str | None = None
+    position: int | None = None
+    votes: int | None = None
+    vote_share_percentage: float | None = None
+    margin_percentage: float | None = None
+
+
+class CandidateHistory(BaseModel):
+    pid: str
+    candidate: str | None = None
+    contests: int
+    wins: int
+    party_switches: int
+    parties: list[str]
+    records: list[CandidateRecord]
+
+
 class GenderYear(BaseModel):
     year: int
     candidates: int

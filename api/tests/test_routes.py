@@ -84,3 +84,12 @@ async def test_gender_allows_anonymous(client):
     response = await client.get("/gender?state=Tamil_Nadu")
     assert response.status_code == 200
     assert isinstance(response.json(), list)
+
+
+@pytest.mark.anyio
+async def test_candidate_history_unknown_returns_404(client):
+    """An unmatched candidate gives 404, not a server error; no auth needed."""
+    response = await client.get(
+        "/candidates/history?state=Nowhere&constituency=None&year=1900&position=1"
+    )
+    assert response.status_code == 404

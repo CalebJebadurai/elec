@@ -12,6 +12,8 @@ from models import (
     ConstituencyResult,
     DistrictSummary,
     Election,
+    CandidateHistory,
+    CandidateRecord,
     ElectionListItem,
     GenderYear,
     PaginatedElections,
@@ -392,6 +394,60 @@ async def list_districts(state: str = Query(...), election_type: str = Query("AE
         state,
     )
     return [DistrictSummary(**dict(r)) for r in rows]
+
+
+# ---------------------------------------------------------------------------
+# GET /candidates/history  — one person's contest record, found via TCPD's pid
+# ---------------------------------------------------------------------------
+@router.get("/candidates/history", response_model=CandidateHistory)
+async def candidate_history(
+    state: str = Query(...),
+    constituency: str = Query(...),
+    year: int = Query(...),
+    position: int = Query(1, ge=1),
+    election_type: str = Query("AE"),
+    _user: dict | None = Depends(get_current_user),
+):
+    pool = await get_pool()
+    et_sql = _et_filter(election_type)
+    pid = await pool.fetchval(
+        f"SELECT pid FROM tcpd_ae WHERE state_name = $1 AND constituency_name = $2"
+        f" AND year = $3 AND position = $4 AND {et_sql} AND pid IS NOT NULL AND pid <> ''"
+        f" LIMIT 1",
+        state, constituency, year, position,
+    )
+    if not pid:
+        raise HTTPException(status_code=404, detail="No linked candidate record")
+
+    rows = await pool.fetch(
+        f"SELECT year, constituency_name, candidate, party, position, votes,"
+        f" vote_share_percentage, margin_percentage"
+        f" FROM tcpd_ae WHERE pid = $1 AND state_name = $2 AND {et_sql}"
+        f" AND (poll_no = 0 OR poll_no IS NULL)"
+        f" ORDER BY year",
+        pid, state,
+    )
+    records = [
+        CandidateRecord(**{k: r[k] for k in CandidateRecord.model_fields})
+        for r in rows
+    ]
+    parties_in_order = [_normalize_party(r.party) for r in records]
+    switches = sum(
+        1 for a, b in zip(parties_in_order, parties_in_order[1:], strict=False) if a != b
+    )
+    distinct: list[str] = []
+    for p in parties_in_order:
+        if p not in distinct:
+            distinct.append(p)
+    return CandidateHistory(
+        pid=pid,
+        candidate=rows[-1]["candidate"] if rows else None,
+        contests=len(records),
+        wins=sum(1 for r in records if r.position == 1),
+        party_switches=switches,
+        parties=distinct,
+        records=records,
+    )
 
 
 # ---------------------------------------------------------------------------
