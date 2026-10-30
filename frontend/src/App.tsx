@@ -18,6 +18,7 @@ const UserMenu = lazy(() => import('./components/UserMenu'));
 const SaveBookmarkModal = lazy(() => import('./components/SaveBookmarkModal'));
 const QuickStart = lazy(() => import('./components/QuickStart'));
 const GlossaryPage = lazy(() => import('./components/GlossaryPage'));
+const LearnPage = lazy(() => import('./components/LearnPage'));
 import ElectionTypeToggle from './components/ElectionTypeToggle';
 import Disclaimer from './components/Disclaimer';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -465,6 +466,16 @@ export default function App() {
                             </button>
                           </div>
                           <QuickStart />
+                          <p className="relative text-xs text-neutral-400 mt-3">
+                            New to elections?{' '}
+                            <button
+                              type="button"
+                              className="text-primary-300 underline cursor-pointer"
+                              onClick={() => navigate('/learn')}
+                            >
+                              Learn how seats are won
+                            </button>
+                          </p>
                           <div className="grid grid-cols-2 gap-3 mt-10 md:grid-cols-4 md:gap-4">
                             <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 text-center">
                               <div className="text-2xl mb-2">📊</div>
@@ -648,6 +659,7 @@ export default function App() {
                   <Route path="/pricing" element={<PricingPage />} />
                   <Route path="/support" element={<SupportPage />} />
                   <Route path="/glossary" element={<GlossaryPage />} />
+                  <Route path="/learn" element={<LearnPage />} />
 
                   {/* Backward compatibility redirects */}
                   <Route
@@ -717,6 +729,17 @@ export default function App() {
                 }}
               >
                 Terms of Service
+              </a>
+              {' · '}
+              <a
+                href="/learn"
+                className="text-primary-400 hover:underline"
+                onClick={(e) => {
+                  e.preventDefault();
+                  navigate('/learn');
+                }}
+              >
+                Learn
               </a>
               {' · '}
               <a
