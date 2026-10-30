@@ -702,6 +702,35 @@ async def all_constituency_swings(state: str = Query(...), election_type: str = 
 # ---------------------------------------------------------------------------
 # GET /predict/data  — full candidate breakdown for the last 2 elections
 # ---------------------------------------------------------------------------
+
+async def _lok_sabha_share_since(pool, state: str, year: int, month: int) -> tuple[int | None, dict[str, float] | None]:
+    """State-wide party vote shares (%) at the latest Lok Sabha election held after the given
+    assembly election, or (None, None). The swing model uses it as a mid-term signal."""
+    rows = await pool.fetch(f"""
+        WITH ls AS (
+            SELECT year, month, constituency_no, party, votes, valid_votes
+            FROM tcpd_ae
+            WHERE state_name = $1 AND {_et_filter("GE")}
+              AND (poll_no = 0 OR poll_no IS NULL)
+              AND (year > $2 OR (year = $2 AND COALESCE(month, 0) > $3))
+        ),
+        latest AS (SELECT MAX(year) AS y FROM ls),
+        pcs AS (
+            SELECT DISTINCT ON (constituency_no) constituency_no, valid_votes
+            FROM ls, latest WHERE ls.year = latest.y
+        )
+        SELECT ls.year, ls.party, SUM(ls.votes) AS votes,
+            (SELECT SUM(valid_votes) FROM pcs) AS valid
+        FROM ls, latest
+        WHERE ls.year = latest.y
+        GROUP BY ls.year, ls.party
+    """, state, year, month)
+    if not rows or not rows[0]["valid"]:
+        return None, None
+    valid = float(rows[0]["valid"])
+    return rows[0]["year"], {r["party"] or "IND": round(100 * float(r["votes"] or 0) / valid, 3) for r in rows}
+
+
 @router.get("/predict/data", response_model=PredictionDataResponse)
 async def prediction_data(state: str = Query(...), election_type: str = Query("AE"), _user: dict = Depends(require_user)):
     if election_type.upper() != "AE":
@@ -726,24 +755,40 @@ async def prediction_data(state: str = Query(...), election_type: str = Query("A
     else:
         latest_year, prev_year = 2021, 2016
 
-    rows = await pool.fetch("""
-        SELECT year, constituency_name, constituency_no, constituency_type,
+    # General elections only (by-elections excluded), seats keyed by number so that two
+    # seats sharing a name are not merged
+    rows = await pool.fetch(f"""
+        SELECT year, month, constituency_name, constituency_no, constituency_type,
             district_name, sub_region, party, votes, vote_share_percentage,
             position, valid_votes, electors, turnout_percentage, enop, n_cand,
-            candidate, margin, margin_percentage
+            candidate, margin, margin_percentage, no_terms
         FROM tcpd_ae
         WHERE year IN ($1, $2) AND state_name = $3
-        ORDER BY constituency_name, year, position
+          AND {_et_filter("AE")}
+          AND (poll_no = 0 OR poll_no IS NULL)
+        ORDER BY year DESC, constituency_no, position
     """, latest_year, prev_year, state)
 
     by_const: dict[str, dict] = {}
+    key_by_name: dict[str, str] = {}
+    latest_month = 0
 
     for r in rows:
         cname = r["constituency_name"]
         yr = r["year"]
+        # Latest-year rows come first and are keyed by seat number; boundaries can change
+        # between elections, so previous-year rows attach by name (or are dropped)
+        if yr == latest_year:
+            key = f"#{r['constituency_no']}" if r["constituency_no"] is not None else cname
+            key_by_name.setdefault(cname, key)
+            latest_month = max(latest_month, r["month"] or 0)
+        else:
+            key = key_by_name.get(cname)
+            if key is None:
+                continue
 
-        if cname not in by_const:
-            by_const[cname] = {
+        if key not in by_const:
+            by_const[key] = {
                 "constituency_name": cname,
                 "constituency_no": r["constituency_no"],
                 "constituency_type": r["constituency_type"],
@@ -760,9 +805,10 @@ async def prediction_data(state: str = Query(...), election_type: str = Query("A
                 "winner_party_latest": None,
                 "margin_latest": None,
                 "margin_percentage_latest": None,
+                "winner_terms_latest": None,
             }
 
-        entry = by_const[cname]
+        entry = by_const[key]
         cand = CandidateResult(
             party=r["party"],
             votes=r["votes"],
@@ -783,6 +829,7 @@ async def prediction_data(state: str = Query(...), election_type: str = Query("A
                 entry["winner_party_latest"] = r["party"]
                 entry["margin_latest"] = r["margin"]
                 entry["margin_percentage_latest"] = r["margin_percentage"]
+                entry["winner_terms_latest"] = r["no_terms"]
         elif yr == prev_year:
             entry["candidates_prev"].append(cand)
 
@@ -794,6 +841,8 @@ async def prediction_data(state: str = Query(...), election_type: str = Query("A
         c.electors_latest for c in constituencies if c.electors_latest
     )
 
+    ls_year, ls_share = await _lok_sabha_share_since(pool, state, latest_year, latest_month)
+
     result = PredictionDataResponse(
         total_electors_next=total_electors_latest,
         total_electors_latest=total_electors_latest,
@@ -801,6 +850,8 @@ async def prediction_data(state: str = Query(...), election_type: str = Query("A
         prev_year=prev_year,
         constituency_count=len(constituencies),
         constituencies=constituencies,
+        ls_year=ls_year,
+        ls_share=ls_share,
     )
     _set_cached(cache_key, result)
     return result

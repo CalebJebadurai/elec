@@ -31,6 +31,10 @@ export function countHiddenAdvancedSettings(params: AppPredictionParams): number
     const v = params[f.name as keyof AppPredictionParams];
     if (typeof v === 'number' && v !== f.defaultValue) n++;
   }
+  if (params.swingSittingMla) n++;
+  if (params.swingTurnout) n++;
+  if (params.swingElectorateGrowth) n++;
+  n += params.voterGroups.filter((g) => g.party && g.lean !== 0).length;
   if (params.totalElectors) n++;
   if (params.allianceConfig.length > 0) n++;
   if (Object.keys(params.constituencyOverrides).length > 0) n++;

@@ -1,0 +1,4 @@
+# Changes after the freeze (PREREGISTRATION-2.md)
+
+1. **Formatting only:** after scoring, Prettier reformatted `frontend/src/engine/swingModel.ts`, so its SHA-256 no longer matches the one in `PREREGISTRATION-2.sha256`. To verify nothing else changed, the freeze was recomputed with the reformatted file. The coefficients are byte-identical (`swing_model.json` still hashes to `c3c280d1…`), and so are the per-seat and seat-total forecasts in `predictions/frozen_swing_2023_26.json`. `swing_model.json` is now excluded from Prettier so its hash stays valid.
+2. **No model changes after scoring.** One limit is visible in the coefficients but was not tuned away: anti-incumbency is pooled over 1977–2023, though it has weakened over time (largest-party swing −12.5 pts in 1977–89, −4.4 pts in 2010–23; `results/01_eda.md`). Any fix (era weights, a time trend) needs a new pre-registered test on elections after May 2026.

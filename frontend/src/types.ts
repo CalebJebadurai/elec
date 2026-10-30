@@ -246,6 +246,7 @@ export interface ConstituencyPredictionData {
   winner_party_latest: string | null;
   margin_latest: number | null;
   margin_percentage_latest: number | null;
+  winner_terms_latest?: number | null;
   candidates_latest: CandidateResult[];
   candidates_prev: CandidateResult[];
 }
@@ -257,6 +258,8 @@ export interface PredictionDataResponse {
   prev_year: number;
   constituency_count: number;
   constituencies: ConstituencyPredictionData[];
+  ls_year?: number | null;
+  ls_share?: Record<string, number> | null;
   _state?: string;
 }
 
@@ -294,6 +297,8 @@ export interface PredictionResult {
   new_party_share?: number;
   errorMarginLow?: number;
   errorMarginHigh?: number;
+  /** Learned model only: simulated chance that each party wins the seat */
+  win_probs?: Record<string, number>;
 }
 
 export interface PredictionParams {
@@ -317,6 +322,9 @@ export interface AggregateParty {
   seatRangeHigh: number;
   avgVoteShare: number;
   totalVotes: number;
+  /** Learned model only: share of simulations in which the party wins most seats / a majority */
+  pLargest?: number;
+  pMajority?: number;
 }
 
 export interface FlippedConstituency {
@@ -493,8 +501,24 @@ export interface AppPredictionParams {
   // Alliance configuration
   allianceConfig: AllianceBloc[];
 
-  // Prediction mode
-  predictionMode: 'formula' | 'ml';
+  // Learned swing model sliders (pts of state-wide vote share, added to what the model learned)
+  swingRuling: number;
+  swingParty: Record<string, number>;
+  swingSittingMla: number;
+  swingTurnout: number;
+  swingElectorateGrowth: number;
+  voterGroups: VoterGroupSetting[];
+
+  // Prediction mode: 'swing' = learned model, 'formula' = classic hand-set formula
+  predictionMode: 'swing' | 'formula' | 'ml';
+}
+
+export interface VoterGroupSetting {
+  id: string;
+  label: string;
+  share: number; // % of voters
+  lean: number; // pts swing within the group towards `party`
+  party: string;
 }
 
 export interface AffinityPreset {

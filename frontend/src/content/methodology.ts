@@ -1,5 +1,5 @@
 /** Version of the client-side scenario formula documented on /methodology. */
-export const METHOD_VERSION = '1.1';
+export const METHOD_VERSION = '2.0';
 
 export interface ChangelogEntry {
   version: string;
@@ -9,6 +9,17 @@ export interface ChangelogEntry {
 
 /** Newest first. Add an entry whenever predictionEngine.ts or its coefficients change. */
 export const METHOD_CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '2.0',
+    date: '2026-10-30',
+    changes: [
+      'New default: a learned swing model (engine/swingModel.ts) fitted on 234 pairs of assembly elections, with simulated seat ranges and win chances.',
+      'Backtested: 49.4% of seats right on 2000–2023 elections (persistence 44.3%, old formula 43.7%); 58.4% on the 2023–26 elections in a pre-registered test (persistence 51.2%).',
+      'New sliders in points of vote share: anti-incumbency, party swings, sitting MLA, turnout, new voters and voter groups.',
+      'Prediction data fixes: seats sharing a name are no longer merged, and by-elections are excluded.',
+      'The previous formula remains available as “Classic formula”.',
+    ],
+  },
   {
     version: '1.1',
     date: '2026-10-30',

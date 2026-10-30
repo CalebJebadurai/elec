@@ -1,5 +1,7 @@
 # Election Prediction Model Card
 
+> **Status (2026-10-30):** the ONNX classifier described below is not shipped (no `.onnx` file exists, so `/v1/predict/ml` cannot run) and its accuracy targets were never met by anything in the app. The simulator now defaults to the learned **swing model** documented in [`datascience/swing/README.md`](../swing/README.md). Measured on elections it was not fitted on, it calls 49.4% of seats right on 2000–2023 (persistence: 44.3%) and 58.4% on the 2023–26 elections (persistence: 51.2%). The ≥65% threshold below is a target, not a result.
+
 **Model Name:** election_predictor  
 **Version:** 1.0.0  
 **Date:** 2026-04-30  
@@ -43,7 +45,7 @@ XGBoost-based binary classifier predicting whether an incumbent party retains a 
 
 ## Performance Metrics
 
-Target: 75% winner prediction accuracy per state (65% minimum threshold).
+Target (never achieved by a shipped model; see the status note above): 75% winner prediction accuracy per state (65% minimum threshold).
 
 | Metric | Threshold | Notes |
 |--------|-----------|-------|

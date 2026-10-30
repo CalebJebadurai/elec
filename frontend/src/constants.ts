@@ -1,4 +1,4 @@
-import type { AffinityPresets, AppPredictionParams } from './types';
+import type { AffinityPresets, AppPredictionParams, VoterGroupSetting } from './types';
 
 export const PARTY_COLORS: Record<string, string> = {
   // National parties
@@ -223,6 +223,19 @@ export const AFFINITY_PRESETS: AffinityPresets = {
   },
 };
 
+/**
+ * Voter groups for "what if this group swings" scenarios. Shares are approximate national
+ * figures from ECI electoral rolls (2024) and Census-based age structure; users should edit
+ * them for their state. Leans start at 0: the data has no group-level vote records, so any
+ * lean is the user's assumption (e.g. from a survey), never a model output.
+ */
+export const DEFAULT_VOTER_GROUPS: VoterGroupSetting[] = [
+  { id: 'women', label: 'Women', share: 48.6, lean: 0, party: '' },
+  { id: 'first', label: 'First-time voters (18–19)', share: 1.9, lean: 0, party: '' },
+  { id: 'young', label: 'Young voters (20–29)', share: 20.4, lean: 0, party: '' },
+  { id: 'senior', label: 'Older voters (60+)', share: 15, lean: 0, party: '' },
+];
+
 export const DEFAULT_PREDICTION_PARAMS: AppPredictionParams = {
   antiIncumbencyPct: 10,
   totalElectors: null,
@@ -249,7 +262,15 @@ export const DEFAULT_PREDICTION_PARAMS: AppPredictionParams = {
   partyVoteShareFactor: 0,
 
   allianceConfig: [],
-  predictionMode: 'formula',
+
+  swingRuling: 0,
+  swingParty: {},
+  swingSittingMla: 0,
+  swingTurnout: 0,
+  swingElectorateGrowth: 0,
+  voterGroups: DEFAULT_VOTER_GROUPS,
+
+  predictionMode: 'swing',
 };
 
 /**

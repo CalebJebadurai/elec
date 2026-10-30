@@ -17,6 +17,7 @@ import {
   type FactorCategory,
 } from '../engine/factorConfig';
 import type { AppPredictionParams, AllianceBloc } from '../types';
+import SwingControls, { type SwingInfo } from './SwingControls';
 
 const SurveyImportModal = lazy(() => import('./SurveyImportModal'));
 
@@ -30,6 +31,7 @@ interface PredictionPanelProps {
   presets?: AffinityPresets;
   topParties?: string[];
   stateName?: string | null;
+  swingInfo?: SwingInfo;
 }
 
 export default function PredictionPanel({
@@ -38,6 +40,7 @@ export default function PredictionPanel({
   presets,
   topParties,
   stateName,
+  swingInfo,
 }: PredictionPanelProps) {
   const activePresets = presets || AFFINITY_PRESETS;
   const majorParties =
@@ -217,50 +220,78 @@ export default function PredictionPanel({
         </p>
       )}
 
-      {/* Prediction mode toggle */}
-      {advanced && (
-        <div className="flex rounded-lg border border-neutral-800 overflow-hidden">
+      {/* Model choice */}
+      <div
+        className="flex rounded-lg border border-neutral-800 overflow-hidden"
+        role="group"
+        aria-label="Prediction model"
+      >
+        {(
+          [
+            ['swing', 'Learned model'],
+            ['formula', 'Classic formula'],
+          ] as const
+        ).map(([m, label]) => (
           <button
-            className={`flex-1 px-3 py-2 text-sm font-medium transition-colors min-h-[44px] ${
-              params.predictionMode === 'formula'
+            key={m}
+            type="button"
+            aria-pressed={params.predictionMode === m}
+            className={`flex-1 px-3 py-2 text-sm font-medium transition-colors min-h-[44px] cursor-pointer ${
+              params.predictionMode === m
                 ? 'bg-primary-600 text-white'
                 : 'bg-neutral-800 text-neutral-400 hover:text-neutral-200'
             }`}
-            onClick={() => update('predictionMode', 'formula')}
+            onClick={() => update('predictionMode', m)}
           >
-            Formula
+            {label}
           </button>
-          <button
-            className="flex-1 px-3 py-2 text-sm font-medium bg-neutral-800 text-neutral-600 cursor-not-allowed min-h-[44px]"
-            disabled
-            title="ML prediction requires backend deployment (coming soon)"
-          >
-            ML (coming soon)
-          </button>
-        </div>
+        ))}
+      </div>
+      {params.predictionMode === 'formula' && (
+        <p className="text-xs text-neutral-500">
+          The classic formula did no better than "same party wins again" in backtests. The learned
+          model called 49% of seats right on 2000–2023 elections and 58% on 2023–26 (vs 44% and 51%
+          for "same party again").
+        </p>
+      )}
+
+      {params.predictionMode === 'swing' && swingInfo && (
+        <SwingControls
+          params={params}
+          onChange={onChange}
+          parties={majorParties}
+          info={swingInfo}
+          advanced={advanced}
+        />
       )}
 
       {/* Primary controls — always visible */}
       <div>
         <h2 className="text-base font-semibold text-primary-300 mb-3">Global Parameters</h2>
 
-        <label className="flex items-center justify-between text-sm text-neutral-300 mb-1">
-          Anti-Incumbency Factor
-          <span className="text-sm font-mono text-primary-400">{params.antiIncumbencyPct}%</span>
-        </label>
-        <Slider
-          value={params.antiIncumbencyPct}
-          onValueChange={(v) => update('antiIncumbencyPct', v)}
-          min={0}
-          max={100}
-          step={1}
-          aria-label="Anti-incumbency factor percentage"
-          className="mb-1"
-        />
-        <div className="flex justify-between text-xs text-neutral-500 mb-3">
-          <span>0%</span>
-          <span>100%</span>
-        </div>
+        {params.predictionMode !== 'swing' && (
+          <>
+            <label className="flex items-center justify-between text-sm text-neutral-300 mb-1">
+              Anti-Incumbency Factor
+              <span className="text-sm font-mono text-primary-400">
+                {params.antiIncumbencyPct}%
+              </span>
+            </label>
+            <Slider
+              value={params.antiIncumbencyPct}
+              onValueChange={(v) => update('antiIncumbencyPct', v)}
+              min={0}
+              max={100}
+              step={1}
+              aria-label="Anti-incumbency factor percentage"
+              className="mb-1"
+            />
+            <div className="flex justify-between text-xs text-neutral-500 mb-3">
+              <span>0%</span>
+              <span>100%</span>
+            </div>
+          </>
+        )}
 
         {advanced && (
           <>
@@ -295,8 +326,9 @@ export default function PredictionPanel({
         </div>
       </div>
 
-      {/* Multi-factor adjustment sections */}
+      {/* Multi-factor adjustment sections (classic formula only) */}
       {advanced &&
+        params.predictionMode === 'formula' &&
         factorCategories.map((category) => {
           const factors = getFactorsByCategory(category);
           const catInfo = FACTOR_CATEGORIES[category];
