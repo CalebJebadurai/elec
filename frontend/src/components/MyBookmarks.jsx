@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../api';
 import SimulationBadge from './SimulationBadge';
+import { PublishConfirmDialog } from './PublishAcknowledgement';
 
 export default function MyBookmarks({ onLoad }) {
   const { user } = useAuth();
@@ -33,6 +34,8 @@ export default function MyBookmarks({ onLoad }) {
       console.error(err);
     }
   }
+
+  const [confirming, setConfirming] = useState(null);
 
   async function handleTogglePublic(bookmark) {
     try {
@@ -111,7 +114,7 @@ export default function MyBookmarks({ onLoad }) {
               </button>
               <button
                 className="bg-neutral-800 text-neutral-200 text-xs px-3 py-1.5 rounded-md min-h-[44px] md:min-h-0 border border-neutral-700 hover:bg-neutral-700 transition-colors cursor-pointer"
-                onClick={() => handleTogglePublic(b)}
+                onClick={() => (b.is_public ? handleTogglePublic(b) : setConfirming(b))}
               >
                 {b.is_public ? 'Make Private' : 'Publish'}
               </button>
@@ -125,6 +128,16 @@ export default function MyBookmarks({ onLoad }) {
           </div>
         ))}
       </div>
+      <PublishConfirmDialog
+        open={!!confirming}
+        title={confirming?.title || ''}
+        onCancel={() => setConfirming(null)}
+        onConfirm={() => {
+          const b = confirming;
+          setConfirming(null);
+          if (b) handleTogglePublic(b);
+        }}
+      />
     </div>
   );
 }
