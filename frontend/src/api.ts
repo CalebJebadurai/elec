@@ -4,6 +4,7 @@ import type {
   YearSummary,
   PartySummary,
   ConstituencySummary,
+  GenderYear,
   StateSwingSummary,
   ConstituencySwing,
   ConstituencySwingRow,
@@ -164,6 +165,8 @@ export const api = {
     _cachedGet(
       `${V1}/swings/constituencies?state=${encodeURIComponent(state)}&election_type=${electionType}`
     ),
+  gender: (state: string, electionType = 'AE'): Promise<GenderYear[]> =>
+    _cachedGet(`${V1}/gender?state=${encodeURIComponent(state)}&election_type=${electionType}`),
   parties: (state: string, electionType = 'AE'): Promise<PartySummary[]> =>
     _cachedGet(`${V1}/parties?state=${encodeURIComponent(state)}&election_type=${electionType}`),
 
