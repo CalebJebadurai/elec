@@ -12,6 +12,7 @@ import {
   ReferenceLine,
 } from 'recharts';
 import { partyColor, majorityMark } from '../constants';
+import SimulationBadge from './SimulationBadge';
 
 export default function PredictionResults({
   summary,
@@ -86,12 +87,16 @@ export default function PredictionResults({
 
   return (
     <div>
+      <div className="flex flex-wrap items-center gap-2 mb-3">
+        <h3 className="text-sm font-semibold text-white">Scenario result</h3>
+        <SimulationBadge />
+      </div>
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-2 mb-4 md:grid-cols-3 lg:grid-cols-6">
         <div
           className={`bg-neutral-900 border rounded-xl p-3 text-center ${hasSimpleMajority ? 'border-success/50' : 'border-warning/50'} col-span-2 md:col-span-1`}
         >
-          <div className="text-xs text-neutral-400">Predicted Outcome</div>
+          <div className="text-xs text-neutral-400">Simulated Outcome</div>
           <div className="text-sm font-bold text-white mt-1">
             {hasSimpleMajority ? `${leader.party} Majority` : 'Hung Assembly'}
           </div>

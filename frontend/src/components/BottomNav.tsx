@@ -27,7 +27,7 @@ const NAV_ITEMS = [
   },
   {
     key: 'predictions',
-    label: 'Predictions',
+    label: 'Simulator',
     pathFn: (state: string) => `/state/${state}/predictions`,
     icon: (
       <svg

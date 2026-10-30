@@ -66,6 +66,8 @@ export default function SeatProjection({ state, year, electionType = 'AE' }) {
         </div>
       ))}
       <div style={{ marginTop: 12, fontSize: 10, color: '#8b949e', textAlign: 'right' }}>
+        Actual past results, not a forecast · Data: TCPD, Ashoka University
+        <br />
         Powered by Election Analytics
       </div>
     </div>

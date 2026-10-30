@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../api';
+import SimulationBadge from './SimulationBadge';
 
 export default function CommunityFeed({ onLoad }) {
   const { user } = useAuth();
@@ -106,7 +107,10 @@ export default function CommunityFeed({ onLoad }) {
               </span>
             </div>
 
-            <h4 className="text-sm font-semibold text-white mb-1">{p.title}</h4>
+            <div className="flex flex-wrap items-center gap-2 mb-1">
+              <h4 className="text-sm font-semibold text-white">{p.title}</h4>
+              <SimulationBadge />
+            </div>
             {p.params?.state_name && (
               <span className="inline-block bg-primary-900/40 text-primary-300 text-xs px-2 py-0.5 rounded-full mb-1">
                 {p.params.state_name.replace(/_/g, ' ')}

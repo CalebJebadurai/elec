@@ -408,7 +408,7 @@ export default function App() {
                     navigate(`/state/${selectedState}/predictions`);
                   }}
                 >
-                  {stats?.next_election_year || 'Next'} Prediction
+                  {stats?.next_election_year || 'Next'} Simulator
                 </button>
               )}
               <button
@@ -486,11 +486,11 @@ export default function App() {
                             <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 text-center">
                               <div className="text-2xl mb-2">🔮</div>
                               <h3 className="text-sm font-semibold text-white mb-1">
-                                {stats?.next_election_year || 'Next'} Predictions
+                                {stats?.next_election_year || 'Next'} Scenario Simulator
                               </h3>
                               <p className="text-xs text-neutral-400">
-                                Model scenarios with anti-incumbency, turnout, and hypothetical new
-                                parties.
+                                Try what-if scenarios with anti-incumbency, turnout, and
+                                hypothetical new parties. Simulations, not forecasts.
                               </p>
                             </div>
                             <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 text-center">
