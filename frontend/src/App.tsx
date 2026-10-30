@@ -36,11 +36,12 @@ import {
 } from './engine/predictionEngine';
 import { AnimatePresence, motion } from 'motion/react';
 import { pageTransition } from './lib/motion';
+import { isLowData, useLowData } from './lib/lowData';
 import Skeleton from './components/Skeleton';
 import type { StatsSummary, PredictionDataResponse, AppPredictionParams } from './types';
 
-// Prefetch heavy route chunks during idle time
-if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+// Prefetch heavy route chunks during idle time (skipped in low-data mode)
+if (typeof window !== 'undefined' && 'requestIdleCallback' in window && !isLowData()) {
   requestIdleCallback(() => {
     import('./components/NationalDashboard');
     import('./components/StateOverview');
@@ -83,6 +84,7 @@ export default function App() {
   const [showLogin, setShowLogin] = useState(false);
   const [showSave, setShowSave] = useState(false);
   const [showBookmarks, setShowBookmarks] = useState(false);
+  const [lowData, setLowData] = useLowData();
 
   // App-level stats (drives dynamic headings)
   const [stats, setStats] = useState<StatsSummary | null>(null);
@@ -432,7 +434,7 @@ export default function App() {
         <main id="main-content" role="main">
           <Suspense fallback={<Loading />}>
             <AnimatePresence mode="wait">
-              <motion.div key={path} {...pageTransition}>
+              <motion.div key={path} {...(lowData ? {} : pageTransition)}>
                 <Routes>
                   {/* Landing page */}
                   <Route
@@ -763,6 +765,16 @@ export default function App() {
               </a>
               {' · '}
               Open Source under MIT License
+            </p>
+            <p>
+              <button
+                type="button"
+                aria-pressed={lowData}
+                onClick={() => setLowData(!lowData)}
+                className="text-primary-400 hover:underline cursor-pointer min-h-[44px] md:min-h-0"
+              >
+                Low-data mode: {lowData ? 'On' : 'Off'}
+              </button>
             </p>
           </div>
         </footer>
