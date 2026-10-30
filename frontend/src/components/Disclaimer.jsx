@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 
 export default function Disclaimer() {
   const [dismissed, setDismissed] = useState(
@@ -14,7 +15,11 @@ export default function Disclaimer() {
         historical patterns and user-adjustable parameters. They <em>do not</em> forecast actual
         election outcomes. Results depend on alliance dynamics, candidate selection, local issues,
         campaign effectiveness, and many other factors not captured here. Use for analytical
-        exploration only.
+        exploration only.{' '}
+        <Link to="/methodology" className="text-primary-300 underline">
+          See the methodology
+        </Link>
+        .
       </div>
       <button
         className="bg-warning/20 text-warning text-xs px-4 py-2 rounded-md hover:bg-warning/30 transition-colors cursor-pointer whitespace-nowrap min-h-[44px] md:min-h-0"

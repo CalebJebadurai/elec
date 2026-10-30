@@ -12,6 +12,7 @@ import {
   ReferenceLine,
 } from 'recharts';
 import { partyColor, majorityMark } from '../constants';
+import { Link } from 'react-router-dom';
 import SimulationBadge from './SimulationBadge';
 
 export default function PredictionResults({
@@ -90,6 +91,9 @@ export default function PredictionResults({
       <div className="flex flex-wrap items-center gap-2 mb-3">
         <h3 className="text-sm font-semibold text-white">Scenario result</h3>
         <SimulationBadge />
+        <Link to="/methodology" className="text-xs text-primary-300 underline">
+          How this works
+        </Link>
       </div>
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-2 mb-4 md:grid-cols-3 lg:grid-cols-6">
