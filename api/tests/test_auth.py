@@ -5,11 +5,12 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-import pytest
-import jwt as pyjwt
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
-from auth import create_token, decode_token, JWT_SECRET, JWT_ALGORITHM, JWT_AUDIENCE
+import jwt as pyjwt
+import pytest
+
+from auth import JWT_ALGORITHM, JWT_AUDIENCE, JWT_SECRET, create_token, decode_token
 
 
 class TestCreateToken:
@@ -31,8 +32,8 @@ class TestCreateToken:
         payload = pyjwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM], audience=JWT_AUDIENCE)
         assert "exp" in payload
         assert "iat" in payload
-        exp = datetime.fromtimestamp(payload["exp"], tz=timezone.utc)
-        assert exp > datetime.now(timezone.utc)
+        exp = datetime.fromtimestamp(payload["exp"], tz=UTC)
+        assert exp > datetime.now(UTC)
 
 
 class TestDecodeToken:
@@ -47,8 +48,8 @@ class TestDecodeToken:
             "sub": "1",
             "role": "user",
             "aud": JWT_AUDIENCE,
-            "exp": datetime.now(timezone.utc) - timedelta(hours=1),
-            "iat": datetime.now(timezone.utc) - timedelta(hours=2),
+            "exp": datetime.now(UTC) - timedelta(hours=1),
+            "iat": datetime.now(UTC) - timedelta(hours=2),
         }
         token = pyjwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
         from fastapi import HTTPException
@@ -67,8 +68,8 @@ class TestDecodeToken:
             "sub": "1",
             "role": "user",
             "aud": JWT_AUDIENCE,
-            "exp": datetime.now(timezone.utc) + timedelta(hours=1),
-            "iat": datetime.now(timezone.utc),
+            "exp": datetime.now(UTC) + timedelta(hours=1),
+            "iat": datetime.now(UTC),
         }
         token = pyjwt.encode(payload, "wrong-secret", algorithm=JWT_ALGORITHM)
         from fastapi import HTTPException
@@ -81,8 +82,8 @@ class TestDecodeToken:
             "sub": "1",
             "role": "user",
             "aud": "wrong-audience",
-            "exp": datetime.now(timezone.utc) + timedelta(hours=1),
-            "iat": datetime.now(timezone.utc),
+            "exp": datetime.now(UTC) + timedelta(hours=1),
+            "iat": datetime.now(UTC),
         }
         token = pyjwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
         from fastapi import HTTPException

@@ -2,7 +2,7 @@
 
 import os
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import bcrypt
 import jwt
@@ -35,8 +35,8 @@ def create_token(user_id: int, role: str = "user") -> str:
         "sub": str(user_id),
         "role": role,
         "aud": JWT_AUDIENCE,
-        "exp": datetime.now(timezone.utc) + timedelta(hours=JWT_EXPIRY_HOURS),
-        "iat": datetime.now(timezone.utc),
+        "exp": datetime.now(UTC) + timedelta(hours=JWT_EXPIRY_HOURS),
+        "iat": datetime.now(UTC),
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 

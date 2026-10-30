@@ -2,14 +2,13 @@
 
 import logging
 import os
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import ORJSONResponse
 from pydantic import BaseModel, Field
 
-from database import get_pool
 from cache import get_cached, set_cached
+from database import get_pool
 
 logger = logging.getLogger("predictions")
 
@@ -47,7 +46,7 @@ class ConstituencyPrediction(BaseModel):
     constituency_no: int
     predicted_winner: str
     predicted_winner_share: float
-    predicted_runner_up: Optional[str] = None
+    predicted_runner_up: str | None = None
     predicted_margin_pct: float
     error_margin_low: float
     error_margin_high: float
@@ -56,7 +55,7 @@ class ConstituencyPrediction(BaseModel):
 
 class MLPredictResponse(BaseModel):
     state: str
-    model_version: Optional[str] = None
+    model_version: str | None = None
     predictions: list[ConstituencyPrediction]
 
 
@@ -167,10 +166,7 @@ async def ml_predict(req: MLPredictRequest):
     if cached:
         return cached
 
-    try:
-        session, version = _get_model()
-    except HTTPException:
-        raise
+    session, version = _get_model()
 
     # Fetch constituency data for the state
     pool = await get_pool()

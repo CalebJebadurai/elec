@@ -2,11 +2,11 @@
 
 import html
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
 
 from database import get_pool
-from routes import _et_filter, _get_general_years
+from routes import _get_general_years
 
 og_router = APIRouter(tags=["sharing"])
 

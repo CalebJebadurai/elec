@@ -56,7 +56,7 @@ async def set_cached(key: str, data, ttl: int = 300):
             await r.setex(key, ttl, serialized)
             return
         except Exception:
-            pass
+            logger.debug("Redis setex failed for %s", key, exc_info=True)
     # Fallback
     import time
     _fallback[key] = (time.time() + ttl, serialized)
@@ -75,7 +75,7 @@ async def invalidate(key: str):
             await r.delete(key)
             return
         except Exception:
-            pass
+            logger.debug("Redis delete failed for %s", key, exc_info=True)
     _fallback.pop(key, None)
 
 
@@ -122,7 +122,7 @@ async def get_cached_with_lock(key: str, ttl: int, fetch_fn):
             try:
                 await r.delete(lock_key)
             except Exception:
-                pass
+                logger.debug("Redis lock release failed for %s", lock_key, exc_info=True)
     else:
         # Another request holds the lock — poll for result
         import asyncio

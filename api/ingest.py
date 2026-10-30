@@ -8,11 +8,13 @@ Also exposed as POST /v1/admin/ingest for API-based ingestion.
 """
 
 import argparse
+import asyncio
 import csv
 import io
 import logging
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from pathlib import Path
 
 logger = logging.getLogger("ingest")
 
@@ -47,7 +49,7 @@ class IngestionResult:
         self.updated = 0
         self.skipped = 0
         self.errors: list[str] = []
-        self.started_at = datetime.now(timezone.utc)
+        self.started_at = datetime.now(UTC)
 
     def summary(self) -> dict:
         return {
@@ -56,7 +58,7 @@ class IngestionResult:
             "skipped": self.skipped,
             "errors": self.errors[:50],  # cap error list
             "total_errors": len(self.errors),
-            "duration_seconds": (datetime.now(timezone.utc) - self.started_at).total_seconds(),
+            "duration_seconds": (datetime.now(UTC) - self.started_at).total_seconds(),
         }
 
 
@@ -125,7 +127,7 @@ async def ingest_csv(pool, csv_text: str) -> IngestionResult:
                 continue
             rows.append(cleaned)
         except Exception as e:
-            result.errors.append(f"Row {i}: {str(e)}")
+            result.errors.append(f"Row {i}: {e!s}")
             result.skipped += 1
 
     if not rows:
@@ -133,38 +135,37 @@ async def ingest_csv(pool, csv_text: str) -> IngestionResult:
         return result
 
     # Ensure unique constraint exists for upsert
-    async with pool.acquire() as conn:
-        async with conn.transaction():
-            await conn.execute("""
-                CREATE UNIQUE INDEX IF NOT EXISTS idx_tcpd_upsert
-                ON tcpd_ae(state_name, year, constituency_no, position, COALESCE(poll_no, 0), election_type)
-            """)
+    async with pool.acquire() as conn, conn.transaction():
+        await conn.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_tcpd_upsert
+            ON tcpd_ae(state_name, year, constituency_no, position, COALESCE(poll_no, 0), election_type)
+        """)
 
-            cols = EXPECTED_COLUMNS
-            placeholders = ", ".join(f"${i+1}" for i in range(len(cols)))
-            col_list = ", ".join(cols)
-            update_set = ", ".join(f"{c} = EXCLUDED.{c}" for c in cols if c not in (
-                "state_name", "year", "constituency_no", "position", "poll_no", "election_type"
-            ))
+        cols = EXPECTED_COLUMNS
+        placeholders = ", ".join(f"${i+1}" for i in range(len(cols)))
+        col_list = ", ".join(cols)
+        update_set = ", ".join(f"{c} = EXCLUDED.{c}" for c in cols if c not in (
+            "state_name", "year", "constituency_no", "position", "poll_no", "election_type"
+        ))
 
-            upsert_sql = f"""
-                INSERT INTO tcpd_ae ({col_list})
-                VALUES ({placeholders})
-                ON CONFLICT (state_name, year, constituency_no, position, COALESCE(poll_no, 0), election_type)
-                DO UPDATE SET {update_set}
-            """
+        upsert_sql = f"""
+            INSERT INTO tcpd_ae ({col_list})
+            VALUES ({placeholders})
+            ON CONFLICT (state_name, year, constituency_no, position, COALESCE(poll_no, 0), election_type)
+            DO UPDATE SET {update_set}
+        """
 
-            for row in rows:
-                vals = [row.get(c) for c in cols]
-                try:
-                    r = await conn.execute(upsert_sql, *vals)
-                    if "UPDATE" in r:
-                        result.updated += 1
-                    else:
-                        result.inserted += 1
-                except Exception as e:
-                    result.errors.append(f"Row ({row.get('state_name')}, {row.get('year')}, {row.get('constituency_no')}): {str(e)}")
-                    result.skipped += 1
+        for row in rows:
+            vals = [row.get(c) for c in cols]
+            try:
+                r = await conn.execute(upsert_sql, *vals)
+                if "UPDATE" in r:
+                    result.updated += 1
+                else:
+                    result.inserted += 1
+            except Exception as e:
+                result.errors.append(f"Row ({row.get('state_name')}, {row.get('year')}, {row.get('constituency_no')}): {e!s}")
+                result.skipped += 1
 
     logger.info(
         "Ingestion complete: inserted=%d updated=%d skipped=%d errors=%d",
@@ -184,8 +185,9 @@ async def ingest_csv(pool, csv_text: str) -> IngestionResult:
 # ── CLI entrypoint ──────────────────────────────────────────
 
 async def _cli_main():
-    import asyncpg
     import os
+
+    import asyncpg
 
     parser = argparse.ArgumentParser(description="Ingest election CSV data")
     parser.add_argument("--file", required=True, help="Path to CSV file")
@@ -196,8 +198,7 @@ async def _cli_main():
         print("ERROR: Set DATABASE_URL or pass --database-url", file=sys.stderr)
         sys.exit(1)
 
-    with open(args.file, encoding="utf-8") as f:
-        csv_text = f.read()
+    csv_text = await asyncio.to_thread(Path(args.file).read_text, encoding="utf-8")
 
     pool = await asyncpg.create_pool(args.database_url, min_size=1, max_size=2)
     try:
@@ -214,5 +215,4 @@ async def _cli_main():
 
 
 if __name__ == "__main__":
-    import asyncio
     asyncio.run(_cli_main())

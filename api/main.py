@@ -1,31 +1,30 @@
 import asyncio
 import ipaddress
+import logging
 import os
 import time
-import logging
 from collections import defaultdict
 from contextlib import asynccontextmanager
 
 import sentry_sdk
-
-from fastapi import FastAPI, HTTPException, Request, Response, APIRouter
+from fastapi import APIRouter, FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, ORJSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.gzip import GZipMiddleware
 
-from database import close_pool, get_pool
-from routes import router
+from admin_routes import admin_router
+from apikey_routes import apikey_router
 from auth_routes import auth_router
 from bookmark_routes import bookmark_router
+from database import close_pool, get_pool
+from export_routes import export_router
+from factor_routes import factor_router
 from national_routes import router as national_router
 from og_routes import og_router
 from payment_routes import payment_router, webhook_router
-from admin_routes import admin_router
-from export_routes import export_router
-from apikey_routes import apikey_router
-from factor_routes import factor_router
 from prediction_routes import prediction_router
+from routes import router
 
 # ---------------------------------------------------------------------------
 # Sentry error tracking (no-op if DSN not set)
@@ -163,7 +162,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         window_start = now - RATE_LIMIT_WINDOW
 
         # Try Redis rate limiting first
-        redis_allowed, redis_count = await _redis_rate_check(
+        redis_allowed, _redis_count = await _redis_rate_check(
             f"rate:{client_ip}", RATE_LIMIT_REQUESTS, RATE_LIMIT_WINDOW
         )
         if not redis_allowed:
@@ -500,7 +499,7 @@ async def lifespan(app: FastAPI):
             from national_routes import warm_cache
             await warm_cache()
         except Exception:
-            pass
+            logger.warning("National cache warm failed", exc_info=True)
     asyncio.create_task(_warm())
 
     # Start usage metering flush loop
@@ -514,7 +513,7 @@ async def lifespan(app: FastAPI):
                 from national_routes import refresh_materialized_views
                 await refresh_materialized_views()
             except Exception:
-                pass
+                logger.warning("Materialized view refresh failed", exc_info=True)
 
     mv_task = asyncio.create_task(_mv_refresh_loop())
 
