@@ -189,6 +189,11 @@ function withNew(base: Row[], path: string): Row[] {
   return [...base, ...readCsv(path).filter((r) => !have.has(`${r.State_Name}|${r.Year}`))];
 }
 
+/** Lok Sabha results as elections, for forecasting them (TCPD + ECI 2024). */
+export function loadLokSabhaElections(): StateElection[] {
+  return buildElections(withNew(readCsv(GE_PATH), GE_NEW));
+}
+
 let cache: { elections: StateElection[]; ls: LokSabha } | null = null;
 /**
  * Load elections. `untilYear` drops everything after it (so a test can see the world as it

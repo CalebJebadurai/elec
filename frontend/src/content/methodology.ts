@@ -17,6 +17,7 @@ export const METHOD_CHANGELOG: ChangelogEntry[] = [
       'Added a new-party warning based on how often new parties have mattered since 2000.',
       'Women’s turnout tested against results on 384 Lok Sabha and 1,980 assembly seats: no reliable link, so no gender term. The women voter group now uses each state’s real share of voters.',
       'Party labels cleaned up for TCPD’s 2022–23 full-name entries. Backtest 2000–2026: 50.6% of seats right.',
+      'Tested Lok Sabha forecasts on seven general elections: 49.9% of seats, below 51.1% for “same party wins again”, so they are not offered.',
     ],
   },
   {

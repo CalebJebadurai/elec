@@ -26,13 +26,21 @@ for (const r of d33) {
   if (!p) pcs.set(k, (p = { state: stateName(r[0]), pc: r[1].trim(), rows: [] }));
   p.rows.push({ cand: r[2], party: code(r[6]), votes: Number(r[12]), electors: Number(r[16]) || 0 });
 }
-const ge = ['State_Name,Year,month,Poll_No,Position,Candidate,Party,Votes,Valid_Votes,Electors,Constituency_Name,Constituency_No,Election_Type'];
+// Lok Sabha constituencies were redrawn in Assam (2023) and Jammu & Kashmir (2022)
+const NEW_BOUNDARIES = new Set(['Assam', 'Jammu_&_Kashmir']);
+const ge = ['State_Name,Year,month,DelimID,Poll_No,Position,Candidate,Party,Votes,Vote_Share_Percentage,Valid_Votes,Electors,Turnout_Percentage,Margin_Percentage,No_Terms,Constituency_Name,Constituency_No,Election_Type'];
 for (const p of pcs.values()) {
   const pcNo = pcNumber.get(`${p.state}|${p.pc.toLowerCase().replace(/\s*\((sc|st)\)$/, '')}`) ?? pcNumber.get(`${p.state}|${p.pc.toLowerCase()}`);
   if (pcNo === undefined) throw new Error(`No PC number for ${p.state} ${p.pc}`);
   p.rows.sort((a, b) => b.votes - a.votes);
   const valid = p.rows.reduce((s, x) => s + x.votes, 0);
-  p.rows.forEach((x, i) => ge.push([p.state, 2024, 5, 0, i + 1, q(x.cand), q(x.party), x.votes, valid, x.electors, q(p.pc), pcNo, 'Lok Sabha Election (GE)'].join(',')));
+  const real = p.rows.filter((x) => x.party !== 'NOTA');
+  const margin = real[1] ? ((100 * (real[0].votes - real[1].votes)) / valid).toFixed(2) : '';
+  const electors = p.rows[0].electors;
+  const turnout = electors ? ((100 * valid) / electors).toFixed(2) : '';
+  p.rows.forEach((x, i) =>
+    ge.push([p.state, 2024, 5, NEW_BOUNDARIES.has(p.state) ? 5 : 4, 0, i + 1, q(x.cand), q(x.party), x.votes, ((100 * x.votes) / valid).toFixed(2), valid, electors, turnout, i === 0 ? margin : '', '', q(p.pc), pcNo, 'Lok Sabha Election (GE)'].join(','))
+  );
 }
 writeFileSync(DIR + '../../ge_2024_tcpd.csv', ge.join('\n') + '\n');
 

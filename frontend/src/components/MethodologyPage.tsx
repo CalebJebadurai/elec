@@ -116,6 +116,15 @@ Largest party right      71 / 125             8 / 20 (formula: 6 / 20)
         </p>
       </Section>
 
+      <Section title="Why there is no Lok Sabha forecast">
+        <p>
+          We tested the same approach on seven general elections from 1996 to 2024. It called 49.9%
+          of seats right, below the 51.1% from &ldquo;same party wins again&rdquo;, and missed the
+          national waves of 2014 and 2019 by more than 100 seats. Without a national signal such as
+          polls, a Lok Sabha forecast here would add nothing, so we do not offer one.
+        </p>
+      </Section>
+
       <h3 className="text-lg font-semibold text-white mt-8 mb-3">Classic formula</h3>
       <p className="text-sm text-neutral-300 mb-4">
         Still available from the simulator&apos;s model switch. It was not better than &ldquo;same

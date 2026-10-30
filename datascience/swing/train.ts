@@ -8,8 +8,11 @@ import {
   type SwingInput,
 } from '../../frontend/src/engine/swingModel';
 
+/** Mid-term signal: state-wide shares from an election of the other kind held in between. */
+export type Signal = (base: StateElection, target: { year: number; month: number }) => Record<string, number> | null;
+
 /** Model input for forecasting `target` from `base` (only what was known before polling day). */
-export function toInput(base: StateElection, prior: StateElection | null, ls: LokSabha, target: { year: number; month: number }): SwingInput {
+export function toInput(base: StateElection, prior: StateElection | null, ls: LokSabha | Signal, target: { year: number; month: number }): SwingInput {
   return {
     seats: [...base.seats.values()].map((s) => ({
       key: String(s.no),
@@ -21,7 +24,7 @@ export function toInput(base: StateElection, prior: StateElection | null, ls: Lo
     })),
     stateShare: base.stateShare,
     priorShare: prior ? prior.stateShare : null,
-    lsShare: lokSabhaBetween(ls, base.state, base, target),
+    lsShare: typeof ls === 'function' ? ls(base, target) : lokSabhaBetween(ls, base.state, base, target),
     largest: base.largest,
     // Experiment (step 2b): the chief minister's party instead of the largest party
     ruling: process.env.FEATURE_CM === '1' ? governingParty(base.state, target.year, target.month) ?? undefined : undefined,
@@ -87,7 +90,7 @@ function fitSigma(xs: number[], absRes: number[]): [number, number] {
   return [Math.max(0.5, beta[0]), Math.max(0, beta[1])];
 }
 
-export function fit(pairs: Pair[], ls: LokSabha, trainedOn: string): SwingCoefficients {
+export function fit(pairs: Pair[], ls: LokSabha | Signal, trainedOn: string): SwingCoefficients {
   // ── Stage A: state-wide swing per party ──
   const rw = recencyWeights(pairs);
   const XA: number[][] = [], yA: number[] = [], wA: number[] = [], sA: number[] = [];
