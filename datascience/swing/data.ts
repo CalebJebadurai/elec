@@ -207,3 +207,29 @@ export function load(untilYear = Infinity) {
     ls: { ...cache.ls, shares: Object.fromEntries(Object.entries(cache.ls.shares).map(([st, ys]) => [st, Object.fromEntries(Object.entries(ys).filter(([y]) => Number(y) <= untilYear))])) },
   };
 }
+
+// ── Governing party (TCPD Chief Ministers dataset, 1962–2022) ──
+const CM_PATH = new URL('../refresh/raw/tcpd_cm/cm.csv', import.meta.url).pathname;
+let cmRows: Row[] | null = null;
+
+/**
+ * Party of the chief minister in office just before the election (by start date), or null
+ * when unknown: no data after 2022, or President's rule at the time.
+ */
+export function governingParty(state: string, year: number, month: number): string | null {
+  if (!existsSync(CM_PATH)) return null;
+  cmRows ??= readCsv(CM_PATH);
+  const cutoff = `${year}-${String(Math.max(1, month)).padStart(2, '0')}-01`;
+  const before = cmRows
+    .filter((r) => r.State_Name === state && r.Start_Date && r.Start_Date < cutoff)
+    .sort((a, b) => a.Start_Date.localeCompare(b.Start_Date));
+  const last = before.at(-1);
+  if (!last || last.Administrative_Rule === 'TRUE') return null;
+  // The party field is empty when the CM entered via a by-election or the upper house;
+  // take the same person's party from their other terms, else treat as unknown
+  const party = last.Party || cmRows.find((r) => r.pid_CM === last.pid_CM && r.State_Name === state && r.Party)?.Party;
+  if (!party) return null;
+  // A CM whose term ended long before the election means the data stops early
+  if (last.End_Date && last.End_Date !== 'NA' && last.End_Date < `${year - 1}-01-01`) return null;
+  return normalizeParty(party);
+}

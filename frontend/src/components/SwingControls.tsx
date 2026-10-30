@@ -93,6 +93,12 @@ export default function SwingControls({ params, onChange, parties, info, advance
         polls, a wave, a scandal.
       </p>
 
+      <p className="text-xs text-warning bg-warning/10 border border-warning/20 rounded-lg px-2 py-1.5 mb-3">
+        Watch for new parties: since 2000, parties that did not exist at the previous election took
+        10% or more of the vote in about 3 of every 10 state elections. The model cannot see them.
+        If one is rising, add it with the new-party tool below.
+      </p>
+
       {info.largest && (
         <SwingSlider
           label={`${info.largest} (largest party last time): anti-incumbency`}

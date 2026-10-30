@@ -78,9 +78,9 @@ export default function MethodologyPage() {
         <p>Scored only on elections the model was not fitted on:</p>
         <Formula>{`                         2000–2026 backtest   2023–26 (pre-registered,
                          (125 elections)      model v1, 13 states)
-Learned model            50.5% of seats       58.4% of seats
+Learned model            50.6% of seats       58.4% of seats
 Same party wins again    44.8%                51.2%
-Classic formula          44.3%                50.6%
+Classic formula          44.4%                50.6%
 Largest party right      71 / 125             8 / 20 (formula: 6 / 20)
 80% ranges held          80%                  66%`}</Formula>
         <p>
@@ -96,6 +96,16 @@ Largest party right      71 / 125             8 / 20 (formula: 6 / 20)
           2024 Lok Sabha from ECI&apos;s statistical reports (Chhattisgarh 2023 is not yet published
           there). The 2024 Lok Sabha result lifted accuracy on the 2024–26 elections from 50.6% to
           54.5% of seats in the backtest.
+        </p>
+      </Section>
+
+      <Section title="What we tried that did not help">
+        <p>
+          Giving recent elections more weight made no real difference. Treating the chief
+          minister&apos;s party as the incumbent, instead of the party that won most seats last
+          time, made forecasts slightly worse (49.1% vs 49.7% of seats on 2000–2022). We kept the
+          simpler model. Full results:{' '}
+          <code className="font-mono">datascience/swing/results/07_step2_decisions.md</code>.
         </p>
       </Section>
 
