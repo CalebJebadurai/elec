@@ -101,7 +101,10 @@ export default function BottomNav({ selectedState }: BottomNavProps) {
     if (item.key === 'community') return path.includes('/community');
     if (item.key === 'overview')
       return (
-        path.includes('/overview') || path.includes('/constituencies') || path.includes('/marginal')
+        path.includes('/overview') ||
+        path.includes('/constituencies') ||
+        path.includes('/marginal') ||
+        path.includes('/claim-check')
       );
     return false;
   }
