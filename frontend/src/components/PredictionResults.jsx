@@ -124,9 +124,15 @@ export default function PredictionResults({
               p.seatRangeHigh != null &&
               p.seatRangeLow !== p.seatRangeHigh && (
                 <div className="text-xs text-neutral-500">
+                  {p.pMajority != null && '80% range '}
                   {p.seatRangeLow}–{p.seatRangeHigh}
                 </div>
               )}
+            {p.pMajority != null && (
+              <div className="text-xs text-primary-300">
+                majority chance {Math.round(p.pMajority * 100)}%
+              </div>
+            )}
             <div className="text-xs text-neutral-500">{p.avgVoteShare.toFixed(1)}% avg</div>
           </div>
         ))}
@@ -281,13 +287,26 @@ export default function PredictionResults({
       </div>
 
       {/* Prediction disclaimer */}
-      {summary.parties.some((p) => p.seatRangeHigh - p.seatRangeLow > summary.totalSeats * 0.1) && (
-        <p className="text-xs text-warning bg-warning/10 border border-warning/20 rounded-lg px-3 py-2 mt-4 leading-relaxed">
-          ⚠️ High uncertainty: slider settings are far from defaults. Seat ranges shown reflect
-          increased prediction uncertainty. Results should be treated as rough directional
-          estimates.
+      {leader?.pMajority != null && (
+        <p className="text-xs text-neutral-400 bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-2 mt-4 leading-relaxed">
+          Seat counts are the average over 400 simulated elections, with errors sized on past
+          results; the map and table show each seat&apos;s favourite, so they lean further towards
+          the leader. Wide ranges are honest: without polls, a state-wide swing is hard to foresee.
+          In backtests the actual seat count fell inside the 80% range for 80% of parties
+          (2000–2023) and 66% (2023–26, mostly because of new parties no model can see). Move the
+          voter-mood sliders to add what you know.
         </p>
       )}
+      {leader?.pMajority == null &&
+        summary.parties.some(
+          (p) => p.seatRangeHigh - p.seatRangeLow > summary.totalSeats * 0.1
+        ) && (
+          <p className="text-xs text-warning bg-warning/10 border border-warning/20 rounded-lg px-3 py-2 mt-4 leading-relaxed">
+            ⚠️ High uncertainty: slider settings are far from defaults. Seat ranges shown reflect
+            increased prediction uncertainty. Results should be treated as rough directional
+            estimates.
+          </p>
+        )}
       <p className="text-xs text-neutral-500 mt-4 leading-relaxed">
         ℹ️ These predictions are exploratory what-if scenarios, not forecasts. They reflect the
         mathematical implications of your slider settings combined with historical patterns. Actual

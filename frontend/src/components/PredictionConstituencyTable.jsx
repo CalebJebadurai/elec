@@ -155,6 +155,12 @@ export default function PredictionConstituencyTable({
                 <span className="text-neutral-500">→</span>
                 <span style={{ color: partyColor(r.predicted_winner) || '#9b59b6' }}>
                   {r.predicted_winner} {(r.predicted_margin_pct || 0).toFixed(1)}%
+                  {r.win_probs && r.predicted_winner && (
+                    <span className="text-neutral-400">
+                      {' '}
+                      ({Math.round((r.win_probs[r.predicted_winner] || 0) * 100)}% chance)
+                    </span>
+                  )}
                   {r.errorMarginLow != null && r.errorMarginHigh != null && (
                     <span className="text-neutral-500 text-[10px]">
                       {' '}
@@ -257,6 +263,12 @@ export default function PredictionConstituencyTable({
                       }}
                     />
                     {r.predicted_winner}
+                    {r.win_probs && r.predicted_winner && (
+                      <span className="text-neutral-400" style={{ fontSize: 11 }}>
+                        {' '}
+                        {Math.round((r.win_probs[r.predicted_winner] || 0) * 100)}%
+                      </span>
+                    )}
                   </td>
                   <td style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>
                     {(r.predicted_margin_pct || 0).toFixed(1)}%

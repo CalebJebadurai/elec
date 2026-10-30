@@ -44,6 +44,7 @@ import {
   applyAllianceTransfers,
   aggregateResults,
 } from './engine/predictionEngine';
+import { buildSwingInput, learnedSwing, runSwingModel } from './engine/swingAdapter';
 import { AnimatePresence, motion } from 'motion/react';
 import { pageTransition } from './lib/motion';
 import { isLowData, useLowData } from './lib/lowData';
@@ -243,9 +244,18 @@ export default function App() {
     return predData.total_electors_next / predData.total_electors_latest;
   }, [predData, debouncedPredParams.totalElectors]);
 
+  // Learned swing model: input built once per state, forecast re-simulated on slider changes
+  const useSwing = debouncedPredParams.predictionMode === 'swing';
+  const swingInput = useMemo(() => (predData ? buildSwingInput(predData) : null), [predData]);
+  const swingLearned = useMemo(() => (swingInput ? learnedSwing(swingInput) : {}), [swingInput]);
+  const swingRun = useMemo(() => {
+    if (!useSwing || !predData || !swingInput) return null;
+    return runSwingModel(predData, swingInput, debouncedPredParams, growthFactor);
+  }, [useSwing, predData, swingInput, debouncedPredParams, growthFactor]);
+
   // Compute baseline predictions (only re-runs when core params change)
-  const baseline = useMemo(() => {
-    if (!predData) return [];
+  const formulaBaseline = useMemo(() => {
+    if (!predData || useSwing) return [];
     return generateBaseline(
       predData.constituencies,
       {
@@ -286,7 +296,9 @@ export default function App() {
     debouncedPredParams.partyStrengthFactor,
     debouncedPredParams.partyVoteShareFactor,
     growthFactor,
+    useSwing,
   ]);
+  const baseline = swingRun ? swingRun.results : formulaBaseline;
 
   // Apply new party on top of baseline, then alliance transfers
   const predictions = useMemo(() => {
@@ -315,7 +327,42 @@ export default function App() {
     debouncedPredParams.allianceConfig,
   ]);
 
-  const summary = useMemo(() => aggregateResults(predictions), [predictions]);
+  const summary = useMemo(() => {
+    const agg = aggregateResults(predictions);
+    // The learned model's simulated seat ranges and chances replace the formula's rough
+    // ranges, unless a new-party or alliance scenario has reshaped the votes afterwards
+    const scenario =
+      (debouncedPredParams.newPartyName && debouncedPredParams.newPartyStatewideVoteShare > 0) ||
+      debouncedPredParams.allianceConfig.length > 0;
+    if (!swingRun || scenario) return agg;
+    // Headline seats are the simulated average: adding up each seat's favourite would hand a
+    // party that is 60% likely everywhere every seat
+    const sim = new Map(swingRun.forecast.parties.map((p) => [p.party, p]));
+    return {
+      ...agg,
+      parties: agg.parties
+        .map((p) => {
+          const s = sim.get(p.party);
+          return s
+            ? {
+                ...p,
+                seats: Math.round(s.mean),
+                seatRangeLow: s.low,
+                seatRangeHigh: s.high,
+                pLargest: s.pLargest,
+                pMajority: s.pMajority,
+              }
+            : { ...p, seats: 0 };
+        })
+        .sort((a, b) => b.seats - a.seats || b.avgVoteShare - a.avgVoteShare),
+    };
+  }, [
+    predictions,
+    swingRun,
+    debouncedPredParams.newPartyName,
+    debouncedPredParams.newPartyStatewideVoteShare,
+    debouncedPredParams.allianceConfig,
+  ]);
 
   // Build actual seat counts from latest election for comparison
   const actualLatest = useMemo(() => {
@@ -666,6 +713,15 @@ export default function App() {
                                 presets={dynamicPresets}
                                 topParties={topParties}
                                 stateName={selectedState}
+                                swingInfo={
+                                  swingInput
+                                    ? {
+                                        largest: swingInput.largest,
+                                        learned: swingLearned,
+                                        lsYear: predData?.ls_year ?? null,
+                                      }
+                                    : undefined
+                                }
                               />
                               <div className="flex-1 min-w-0">
                                 <PredictionResults

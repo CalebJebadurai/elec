@@ -3,3 +3,4 @@ node_modules
 coverage
 bun.lock
 *.min.js
+src/engine/data/swing_model.json

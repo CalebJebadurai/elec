@@ -255,6 +255,7 @@ class ConstituencyPredictionData(BaseModel):
     winner_party_latest: str | None = None
     margin_latest: int | None = None
     margin_percentage_latest: float | None = None
+    winner_terms_latest: int | None = None
     candidates_latest: list[CandidateResult] = []
     candidates_prev: list[CandidateResult] = []
 
@@ -266,6 +267,8 @@ class PredictionDataResponse(BaseModel):
     prev_year: int
     constituency_count: int
     constituencies: list[ConstituencyPredictionData]
+    ls_year: int | None = None  # latest Lok Sabha election after latest_year, if any
+    ls_share: dict[str, float] | None = None  # its state-wide party vote shares, %
 
 
 # ---------------------------------------------------------------------------

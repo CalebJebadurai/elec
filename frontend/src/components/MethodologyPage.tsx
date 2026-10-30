@@ -33,15 +33,70 @@ export default function MethodologyPage() {
       <h2 className="text-xl font-semibold text-white mb-1">How the scenario simulator works</h2>
       <p className="text-xs text-neutral-400 mb-5">
         Method version {METHOD_VERSION} · source:{' '}
-        <code className="font-mono">frontend/src/engine/predictionEngine.ts</code>
+        <code className="font-mono">frontend/src/engine/swingModel.ts</code> (learned model) and{' '}
+        <code className="font-mono">predictionEngine.ts</code> (classic formula)
       </p>
 
       <div className="bg-warning/10 border border-warning/30 rounded-xl p-4 mb-6 text-sm text-neutral-200">
-        <strong>In short:</strong> the simulator takes the last election&apos;s results in each
-        constituency and applies the changes <em>you</em> choose with the sliders. It is a what-if
-        calculator, not a forecast. It has <strong>not been back-tested</strong> against past
-        elections, so no accuracy figure can be claimed for it.
+        <strong>In short:</strong> the default <em>learned model</em> starts from each seat&apos;s
+        last result and adds the swing that past elections suggest, then simulates 400 elections to
+        show seat ranges and chances. Your sliders add to that swing. It is better than guessing but
+        far from certain: it called about half of seats right in backtests, and it cannot see new
+        parties, alliance changes or candidates.
       </div>
+
+      <Section title="The learned model">
+        <p>
+          <strong>State-wide swing.</strong> For each party, a regression fitted on 234 pairs of
+          consecutive assembly elections (1977–2023, unchanged boundaries, TCPD data) predicts the
+          change in its state-wide vote share from: its size, whether it was the largest party (a
+          large ruling party typically loses several points), its trend over the last two elections,
+          and the Lok Sabha result held in between where one exists (the strongest single signal:
+          about half of the gap carries over).
+        </p>
+        <p>
+          <strong>Seat level.</strong> Each seat&apos;s last result plus the party&apos;s state
+          swing, applied partly uniformly and partly in proportion to its local strength. Seats
+          where a party ran far above its state average drift back by about a third of the gap, and
+          the party holding the seat keeps about a point extra.
+        </p>
+        <p>
+          <strong>Uncertainty.</strong> Each simulated election draws a shared state-level error per
+          party and a seat-level error, sized from the model&apos;s past errors (state errors
+          inflated by 1.5, chosen on 2000–2009 so that 80% ranges hold 80% of the time). Headline
+          seats are the average over simulations.
+        </p>
+        <p>
+          <strong>Sliders</strong> are in points of state-wide vote share and add to the learned
+          swing. Turnout and electorate growth show no reliable effect in history, and the panel
+          says so. Results data has no votes by gender or age, so voter-group sliders apply your own
+          assumption: a group making up S% of voters swinging L points moves a party by S×L/100.
+        </p>
+      </Section>
+
+      <Section title="How accurate is it?">
+        <p>Scored only on elections the model was not fitted on:</p>
+        <Formula>{`                         2000–2023 backtest   2023–26 (pre-registered)
+Learned model            49.4% of seats       58.4% of seats
+Same party wins again    44.3%                51.2%
+Classic formula          43.7%                50.6%
+Largest party right      60 / 108             8 / 20 (formula: 6 / 20)
+80% ranges held          80%                  66%`}</Formula>
+        <p>
+          The 2023–26 test was frozen and hashed before scoring (
+          <code className="font-mono">datascience/swing/PREREGISTRATION-2.md</code>). Its ranges
+          were too narrow, mostly because 213 seats went to parties or factions that did not exist
+          at the last election. If you knew each party&apos;s true state-wide swing (from good
+          polls, say) and set it with the sliders, the model would have called 56% of seats and the
+          largest party in 84 of 108 elections. The sliders are where real information goes.
+        </p>
+      </Section>
+
+      <h3 className="text-lg font-semibold text-white mt-8 mb-3">Classic formula</h3>
+      <p className="text-sm text-neutral-300 mb-4">
+        Still available from the simulator&apos;s model switch. It was not better than &ldquo;same
+        party wins again&rdquo; in either test.
+      </p>
 
       <Section title="1. Starting point">
         <p>
