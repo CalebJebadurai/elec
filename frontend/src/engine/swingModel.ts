@@ -40,6 +40,8 @@ export interface SwingInput {
   priorShare: Record<string, number> | null; // election before the base, %
   lsShare: Record<string, number> | null; // Lok Sabha held after the base election, %
   largest: string; // party with most seats at the base election
+  /** Party governing the state going into the election, when known (else `largest` is used) */
+  ruling?: string;
 }
 
 export interface VoterGroup {
@@ -74,7 +76,7 @@ const MIN_STATE_SHARE = 1; // parties below 1% state-wide get no state swing ter
 /** State-level features for one party: [1, S, largest, trend, trendMissing, ls, lsMissing, largest*S]. */
 export function stateFeatures(party: string, input: Omit<SwingInput, 'seats'>): number[] {
   const S = input.stateShare[party] || 0;
-  const L = party === input.largest ? 1 : 0;
+  const L = party === rulingParty(input) ? 1 : 0;
   const hasPrior = input.priorShare !== null;
   const T = hasPrior ? S - (input.priorShare![party] || 0) : 0;
   const hasLs = input.lsShare !== null;
@@ -95,6 +97,10 @@ export function seatFeatures(
   const h = holds ? 1 : 0;
   return [dS, dS * r, (v - S) / 10, h, h * (terms >= 2 ? 1 : 0), (h * margin) / 10];
 }
+
+/** The party treated as the incumbent government: the known ruling party, else the largest. */
+export const rulingParty = (input: Pick<SwingInput, 'largest' | 'ruling'>) =>
+  input.ruling || input.largest;
 
 export const dot = (w: number[], x: number[]) => x.reduce((s, xi, i) => s + xi * (w[i] || 0), 0);
 const clamp = (x: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, x));
@@ -137,7 +143,7 @@ export function expectedStateSwing(
   for (const [p, S] of Object.entries(input.stateShare)) {
     if (p === 'IND' || S < MIN_STATE_SHARE) continue;
     let d = dot(coef.state.w, stateFeatures(p, input));
-    if (p === input.largest) {
+    if (p === rulingParty(input)) {
       d += sl.rulingSwing;
       d += coef.effects.turnout.perPoint * sl.turnoutChange;
       d += coef.effects.electorateGrowth.perPoint * sl.electorateGrowth;

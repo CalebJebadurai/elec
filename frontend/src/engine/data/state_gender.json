@@ -1,0 +1,187 @@
+{
+ "Bihar": {
+  "electors": 47.1,
+  "voters": 50.4,
+  "turnoutGap": 9
+ },
+ "Telangana": {
+  "electors": 50,
+  "voters": 50.2,
+  "turnoutGap": 0.6
+ },
+ "Sikkim": {
+  "electors": 49.7,
+  "voters": 49.9,
+  "turnoutGap": 0.8
+ },
+ "Tamil_Nadu": {
+  "electors": 51.1,
+  "voters": 51.8,
+  "turnoutGap": 2.4
+ },
+ "Odisha": {
+  "electors": 49.3,
+  "voters": 50.1,
+  "turnoutGap": 2.4
+ },
+ "Andhra_Pradesh": {
+  "electors": 50.9,
+  "voters": 50.7,
+  "turnoutGap": -0.5
+ },
+ "Jharkhand": {
+  "electors": 49.5,
+  "voters": 51.6,
+  "turnoutGap": 5.6
+ },
+ "Maharashtra": {
+  "electors": 48.4,
+  "voters": 47.8,
+  "turnoutGap": -1.5
+ },
+ "Madhya_Pradesh": {
+  "electors": 48.5,
+  "voters": 47.9,
+  "turnoutGap": -1.9
+ },
+ "West_Bengal": {
+  "electors": 48.7,
+  "voters": 49.2,
+  "turnoutGap": 1.8
+ },
+ "Mizoram": {
+  "electors": 51.2,
+  "voters": 51.9,
+  "turnoutGap": 2.3
+ },
+ "Puducherry": {
+  "electors": 53,
+  "voters": 53.9,
+  "turnoutGap": 3.3
+ },
+ "Delhi": {
+  "electors": 46.3,
+  "voters": 46.6,
+  "turnoutGap": 0.8
+ },
+ "Arunachal_Pradesh": {
+  "electors": 50.6,
+  "voters": 52.2,
+  "turnoutGap": 5.3
+ },
+ "Haryana": {
+  "electors": 46.8,
+  "voters": 46.2,
+  "turnoutGap": -1.6
+ },
+ "Rajasthan": {
+  "electors": 47.8,
+  "voters": 48,
+  "turnoutGap": 0.5
+ },
+ "Kerala": {
+  "electors": 51.2,
+  "voters": 53.2,
+  "turnoutGap": 6.3
+ },
+ "Assam": {
+  "electors": 49.9,
+  "voters": 50.3,
+  "turnoutGap": 1.6
+ },
+ "Jammu_&_Kashmir": {
+  "electors": 48.6,
+  "voters": 48.4,
+  "turnoutGap": -0.6
+ },
+ "Andaman_And_Nicobar_Islands": {
+  "electors": 47.9,
+  "voters": 47.7,
+  "turnoutGap": -0.4
+ },
+ "Chandigarh": {
+  "electors": 48.2,
+  "voters": 47.7,
+  "turnoutGap": -1.3
+ },
+ "Chhattisgarh": {
+  "electors": 50.4,
+  "voters": 50,
+  "turnoutGap": -1
+ },
+ "Goa": {
+  "electors": 51.5,
+  "voters": 51.9,
+  "turnoutGap": 1.3
+ },
+ "Gujarat": {
+  "electors": 48.6,
+  "voters": 45.7,
+  "turnoutGap": -6.9
+ },
+ "Himachal_Pradesh": {
+  "electors": 49,
+  "voters": 50.8,
+  "turnoutGap": 4.9
+ },
+ "Jammu_And_Kashmir": {
+  "electors": 48.6,
+  "voters": 47.1,
+  "turnoutGap": -3.3
+ },
+ "Karnataka": {
+  "electors": 49.9,
+  "voters": 49.6,
+  "turnoutGap": -0.9
+ },
+ "Ladakh": {
+  "electors": 48.4,
+  "voters": 50.6,
+  "turnoutGap": 6.2
+ },
+ "Lakshadweep": {
+  "electors": 49.2,
+  "voters": 50.1,
+  "turnoutGap": 3
+ },
+ "Manipur": {
+  "electors": 51.2,
+  "voters": 52,
+  "turnoutGap": 2.6
+ },
+ "Meghalaya": {
+  "electors": 50.5,
+  "voters": 52,
+  "turnoutGap": 4.6
+ },
+ "Nagaland": {
+  "electors": 49.9,
+  "voters": 50.3,
+  "turnoutGap": 1
+ },
+ "Punjab": {
+  "electors": 47.2,
+  "voters": 47,
+  "turnoutGap": -0.4
+ },
+ "The_Dadra_And_Nagar_Haveli_And_Daman_And_Diu": {
+  "electors": 48.3,
+  "voters": 49.2,
+  "turnoutGap": 2.7
+ },
+ "Tripura": {
+  "electors": 49.6,
+  "voters": 49.6,
+  "turnoutGap": -0.1
+ },
+ "Uttar_Pradesh": {
+  "electors": 46.7,
+  "voters": 47,
+  "turnoutGap": 0.8
+ },
+ "Uttarakhand": {
+  "electors": 47.7,
+  "voters": 49.4,
+  "turnoutGap": 3.7
+ }
+}

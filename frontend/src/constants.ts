@@ -194,6 +194,17 @@ export function normalizeParty(p: string | null | undefined): string {
   // CPIM → CPM (TCPD codes CPI(M) both ways)
   if (u === 'CPIM') return 'CPM';
 
+  // TCPD's 2022–23 releases spell some parties out in full; map them to the codes used before
+  const FULL_NAMES: Record<string, string> = {
+    'None of the Above': 'NOTA',
+    'Communist Party of India(Marxist)': 'CPM',
+    'Communist Party of India (Marxist)': 'CPM',
+    'United Democratic Party': 'UDP',
+    'Bhartiya Tribal Party': 'BTP',
+    'Shiromani Akali Dal (Amritsar)(Simranjit Singh Mann)': 'SAD(M)',
+  };
+  if (FULL_NAMES[u]) return FULL_NAMES[u];
+
   // AAP → AAAP (TCPD codes the Aam Aadmi Party both ways; both only after 2012)
   if (u === 'AAP') return 'AAAP';
 

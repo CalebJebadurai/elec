@@ -517,6 +517,7 @@ export interface VoterGroupSetting {
   id: string;
   label: string;
   share: number; // % of voters
+  shareEdited?: boolean; // the user changed `share`; otherwise a state figure may replace it
   lean: number; // pts swing within the group towards `party`
   party: string;
 }

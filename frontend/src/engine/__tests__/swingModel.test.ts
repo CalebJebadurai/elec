@@ -7,8 +7,14 @@ import {
   NEUTRAL_SLIDERS,
   type SwingInput,
 } from '../swingModel';
-import { SWING_COEFFICIENTS, buildSwingInput, runSwingModel } from '../swingAdapter';
-import { DEFAULT_PREDICTION_PARAMS } from '../../constants';
+import {
+  SWING_COEFFICIENTS,
+  STATE_GENDER,
+  buildSwingInput,
+  groupShare,
+  runSwingModel,
+} from '../swingAdapter';
+import { DEFAULT_PREDICTION_PARAMS, normalizeParty } from '../../constants';
 import type { PredictionDataResponse } from '../../types';
 
 // Two-party state: A holds 6 of 10 seats with 50% vs B 45%
@@ -91,6 +97,12 @@ describe('swing model', () => {
     expect(withGroup.B - base.B).toBeCloseTo(5, 6);
   });
 
+  it('treats a named ruling party as the incumbent instead of the largest', () => {
+    const input = { ...makeInput(), ruling: 'B' };
+    expect(stateFeatures('B', input)[2]).toBe(1);
+    expect(stateFeatures('A', input)[2]).toBe(0);
+  });
+
   it('marks missing trend and Lok Sabha signals instead of inventing them', () => {
     const x = stateFeatures('A', { ...makeInput(), priorShare: null, lsShare: null });
     expect(x[4]).toBe(1); // trend missing
@@ -105,6 +117,28 @@ describe('swing model', () => {
     expect(Math.abs(m)).toBeLessThan(0.03);
     expect(v).toBeGreaterThan(0.95);
     expect(v).toBeLessThan(1.05);
+  });
+});
+
+describe('party labels', () => {
+  it('merges the spellings TCPD and ECI use for one party', () => {
+    expect(normalizeParty('AAP')).toBe('AAAP');
+    expect(normalizeParty('CPIM')).toBe('CPM');
+    expect(normalizeParty('Communist Party of India(Marxist)')).toBe('CPM');
+    expect(normalizeParty('None of the Above')).toBe('NOTA');
+  });
+});
+
+describe('voter group shares', () => {
+  const women = { id: 'women', label: 'Women', share: 48.6, lean: 0, party: '' };
+
+  it("uses the state's real figure for women until the user edits it", () => {
+    expect(groupShare(women, 'Bihar')).toBe(STATE_GENDER.Bihar.voters);
+    expect(groupShare({ ...women, share: 40, shareEdited: true }, 'Bihar')).toBe(40);
+  });
+
+  it('keeps the national default for states without data', () => {
+    expect(groupShare(women, 'Nowhere')).toBe(48.6);
   });
 });
 
