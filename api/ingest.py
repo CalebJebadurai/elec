@@ -98,8 +98,9 @@ async def ingest_csv(pool, csv_text: str) -> IngestionResult:
     """
     Validate, clean, and upsert CSV data into tcpd_ae.
 
-    Uses ON CONFLICT on (state_name, year, constituency_no, position, poll_no, election_type)
-    to update existing records and insert new ones.
+    Uses ON CONFLICT on (state_name, year, month, constituency_no, position, poll_no,
+    election_type) to update existing records and insert new ones. The month is part of the
+    key because some states held two general elections in one year (Bihar, Feb and Oct 2005).
     Entire operation is wrapped in a transaction.
     """
     result = IngestionResult()
@@ -137,21 +138,23 @@ async def ingest_csv(pool, csv_text: str) -> IngestionResult:
     # Ensure unique constraint exists for upsert
     async with pool.acquire() as conn, conn.transaction():
         await conn.execute("""
-            CREATE UNIQUE INDEX IF NOT EXISTS idx_tcpd_upsert
-            ON tcpd_ae(state_name, year, constituency_no, position, COALESCE(poll_no, 0), election_type)
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_tcpd_upsert_month
+            ON tcpd_ae(state_name, year, COALESCE(month, 0), constituency_no, position,
+                       COALESCE(poll_no, 0), election_type)
         """)
 
         cols = EXPECTED_COLUMNS
         placeholders = ", ".join(f"${i+1}" for i in range(len(cols)))
         col_list = ", ".join(cols)
         update_set = ", ".join(f"{c} = EXCLUDED.{c}" for c in cols if c not in (
-            "state_name", "year", "constituency_no", "position", "poll_no", "election_type"
+            "state_name", "year", "month", "constituency_no", "position", "poll_no", "election_type"
         ))
 
         upsert_sql = f"""
             INSERT INTO tcpd_ae ({col_list})
             VALUES ({placeholders})
-            ON CONFLICT (state_name, year, constituency_no, position, COALESCE(poll_no, 0), election_type)
+            ON CONFLICT (state_name, year, COALESCE(month, 0), constituency_no, position,
+                         COALESCE(poll_no, 0), election_type)
             DO UPDATE SET {update_set}
         """
 

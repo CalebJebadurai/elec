@@ -1,5 +1,5 @@
 /** Version of the client-side scenario formula documented on /methodology. */
-export const METHOD_VERSION = '2.0';
+export const METHOD_VERSION = '2.1';
 
 export interface ChangelogEntry {
   version: string;
@@ -9,6 +9,14 @@ export interface ChangelogEntry {
 
 /** Newest first. Add an entry whenever predictionEngine.ts or its coefficients change. */
 export const METHOD_CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '2.1',
+    date: '2026-10-30',
+    changes: [
+      'Data refreshed: 19 assembly elections from 2023–26 and the 2024 Lok Sabha, from ECI statistical reports. Forecasts now start from each state’s latest election.',
+      'Model refitted on 251 election pairs (same design). Backtest 2000–2026: 50.5% of seats right vs 44.8% for “same party wins again”.',
+    ],
+  },
   {
     version: '2.0',
     date: '2026-10-30',

@@ -250,8 +250,8 @@ export default function PredictionPanel({
       {params.predictionMode === 'formula' && (
         <p className="text-xs text-neutral-500">
           The classic formula did no better than "same party wins again" in backtests. The learned
-          model called 49% of seats right on 2000–2023 elections and 58% on 2023–26 (vs 44% and 51%
-          for "same party again").
+          model called 50.5% of seats right on 125 elections from 2000–2026 (vs 44.8% for "same
+          party again").
         </p>
       )}
 

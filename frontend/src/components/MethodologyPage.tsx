@@ -76,11 +76,12 @@ export default function MethodologyPage() {
 
       <Section title="How accurate is it?">
         <p>Scored only on elections the model was not fitted on:</p>
-        <Formula>{`                         2000–2023 backtest   2023–26 (pre-registered)
-Learned model            49.4% of seats       58.4% of seats
-Same party wins again    44.3%                51.2%
-Classic formula          43.7%                50.6%
-Largest party right      60 / 108             8 / 20 (formula: 6 / 20)
+        <Formula>{`                         2000–2026 backtest   2023–26 (pre-registered,
+                         (125 elections)      model v1, 13 states)
+Learned model            50.5% of seats       58.4% of seats
+Same party wins again    44.8%                51.2%
+Classic formula          44.3%                50.6%
+Largest party right      71 / 125             8 / 20 (formula: 6 / 20)
 80% ranges held          80%                  66%`}</Formula>
         <p>
           The 2023–26 test was frozen and hashed before scoring (
@@ -89,6 +90,12 @@ Largest party right      60 / 108             8 / 20 (formula: 6 / 20)
           at the last election. If you knew each party&apos;s true state-wide swing (from good
           polls, say) and set it with the sliders, the model would have called 56% of seats and the
           largest party in 84 of 108 elections. The sliders are where real information goes.
+        </p>
+        <p>
+          <strong>Data:</strong> TCPD results to 2023, plus the 2023–26 assembly elections and the
+          2024 Lok Sabha from ECI&apos;s statistical reports (Chhattisgarh 2023 is not yet published
+          there). The 2024 Lok Sabha result lifted accuracy on the 2024–26 elections from 50.6% to
+          54.5% of seats in the backtest.
         </p>
       </Section>
 

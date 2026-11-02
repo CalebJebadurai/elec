@@ -10,7 +10,8 @@ import type { ConstituencyPredictionData } from '../../frontend/src/types';
 
 const { elections, ls } = load();
 const all = buildPairs(elections).filter((p) => p.sameBoundaries && p.target.year >= 1977);
-const tests = all.filter((p) => p.target.year >= 2000);
+// FROM / TO limit the target years (default: 2000 to the latest election in the data)
+const tests = all.filter((p) => p.target.year >= Number(process.env.FROM || 2000) && p.target.year <= Number(process.env.TO || 9999));
 const ORACLE = process.argv.includes('--oracle');
 // Error inflation applied to the fitted state-level sigma (calibration; see 03_calibrate.ts)
 const K = Number(process.env.SIGMA_K || 1.5);
@@ -170,7 +171,7 @@ const meanBy = (f: (r: Row) => number) => rows.reduce((s, r) => s + f(r), 0) / r
 const out = [
   `# Swing model backtest${ORACLE ? ' — ORACLE (actual state swings fed in through the party sliders)' : ''}`,
   '',
-  `Rolling origin: ${rows.length} assembly elections 2000–2023 with unchanged boundaries, ${seatsTotal} seats. Each is forecast by a model fitted only on elections before its year.`,
+  `Rolling origin: ${rows.length} assembly elections ${Math.min(...rows.map((r) => r.year))}–${Math.max(...rows.map((r) => r.year))} with unchanged boundaries, ${seatsTotal} seats. Each is forecast by a model fitted only on elections before its year.`,
   '',
   '| Model | Seat winners right (95% CI) | Largest party right | Mean seat error per party | Brier score per seat |',
   '|---|---|---|---|---|',
@@ -189,5 +190,5 @@ const out = [
   ...rows.map((r) => `| ${r.label} | ${r.seats} | ${pct(r.m0)} | ${pct(r.m1)} | ${pct(r.sw)} | ${r.largestM1 ? 'yes' : 'no'} / ${r.largestSw ? 'yes' : 'no'} |`),
 ];
 mkdirSync(new URL('./results', import.meta.url).pathname, { recursive: true });
-writeFileSync(new URL(`./results/02_backtest${ORACLE ? '_oracle' : ''}.md`, import.meta.url).pathname, out.join('\n') + '\n');
+writeFileSync(new URL(`./results/02_backtest${ORACLE ? '_oracle' : ''}${process.env.OUT_SUFFIX || ''}.md`, import.meta.url).pathname, out.join('\n') + '\n');
 console.log(out.slice(0, 14).join('\n'));
